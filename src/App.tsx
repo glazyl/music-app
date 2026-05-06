@@ -1389,13 +1389,6 @@ export default function App() {
                   </div>
                 </div>
                   <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                    {isBuffering && (
-                      <motion.div 
-                        animate={{ rotate: 360 }}
-                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                        className="w-4 h-4 border-2 border-neon-green/30 border-t-neon-green rounded-full flex-shrink-0"
-                      />
-                    )}
                     <button 
                       onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)} 
                       className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform"
@@ -1488,15 +1481,6 @@ export default function App() {
                 <div className="w-full mt-10 flex items-center justify-between pb-10">
                    <button className="text-white/40 hover:text-white transition-colors"><div className="w-6 h-6 border-2 border-current rounded-lg flex items-center justify-center text-[10px] font-black">HQ</div></button>
                    <div className="flex items-center gap-10 relative">
-                      {isBuffering && (
-                        <div className="absolute -top-10 left-1/2 -translate-x-1/2">
-                           <motion.div 
-                             animate={{ rotate: 360 }}
-                             transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                             className="w-6 h-6 border-2 border-neon-green/30 border-t-neon-green rounded-full"
-                           />
-                        </div>
-                      )}
                       <button onClick={handlePrev} className="text-white active:scale-90 transition-transform"><SkipBack className="w-8 h-8 fill-current" /></button>
                       <button 
                         onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)}
