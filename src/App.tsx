@@ -71,7 +71,7 @@ const SAMPLE_TRACKS: Track[] = [
     title: 'Stateside + Zara Larsson',
     artist: 'PinkPantheress, Zara Larsson',
     duration: '3:04',
-    cover: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b0/d2/bb/b0d2bb76-41a2-1bb1-586c-107b63e4181d/5026854077819.jpg/72x72bb.jpg',
+    cover: 'https://images.genius.com/f3eff0988933e71aba2424313b12fe59.1000x1000x1.png',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
     isLocked: true,
     bpm: 165
@@ -81,17 +81,17 @@ const SAMPLE_TRACKS: Track[] = [
     title: 'party 4 u',
     artist: 'Charli xcx',
     duration: '4:56',
-    cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=300&h=300&auto=format&fit=crop',
+    cover: 'https://images.genius.com/e618acfa672295153b4a390066c58576.1000x1000x1.png',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
     isLocked: true,
     bpm: 155
   },
   {
     id: '5',
-    title: 'Glitch Runner',
-    artist: 'CyberCore',
-    duration: '3:50',
-    cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&h=300&auto=format&fit=crop',
+    title: 'Womanizer',
+    artist: 'Britney Spears',
+    duration: '3:44',
+    cover: 'https://images.genius.com/e8ef9cf7f6ace6101517128b7eec657b.300x300x1.jpg',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
     isLocked: true,
     bpm: 172
@@ -423,9 +423,10 @@ export default function App() {
                     <div className="bg-[#111111] p-5 rounded-[2rem] border border-white/5 relative overflow-hidden active:scale-[0.98] transition-transform cursor-pointer">
                       <div className="flex items-center space-x-4">
                         <div className="w-20 h-20 bg-white/5 rounded-2xl overflow-hidden shadow-2xl relative flex-shrink-0">
-                          <img src={tracks.find(t => t.isLocked)?.cover} alt="" className="w-full h-full object-cover grayscale opacity-30" />
-                          <div className="absolute inset-0 flex items-center justify-center">
+                          <img src={tracks.find(t => t.isLocked)?.cover} alt="" className="w-full h-full object-cover grayscale opacity-[0.25]" />
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
                             <Lock className="w-6 h-6 text-white/20" />
+                            <p className="text-[7px] font-black uppercase text-white/40 tracking-widest">Run to unlock</p>
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
@@ -519,11 +520,16 @@ export default function App() {
                       onClick={() => !track.isLocked && setCurrentTrackIndex(tracks.indexOf(track))}
                       className={`bg-white/5 p-4 rounded-3xl flex items-center space-x-4 border border-transparent transition-all active:scale-[0.98] cursor-pointer relative group ${
                         track.id === currentTrack.id ? 'border-neon-green/30 bg-neon-green/5' : ''
-                      } ${track.isLocked ? 'opacity-30' : ''}`}
+                      } ${track.isLocked ? 'opacity-50' : ''}`}
                     >
                       <div className="w-12 h-12 rounded-xl overflow-hidden shadow-xl flex-shrink-0 relative">
-                        <img src={track.cover} alt="" className="w-full h-full object-cover" />
-                        {track.isLocked && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Lock className="w-4 h-4 text-white/40" /></div>}
+                        <img src={track.cover} alt="" className={`w-full h-full object-cover ${track.isLocked ? 'grayscale opacity-[0.25]' : ''}`} />
+                        {track.isLocked && (
+                          <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center">
+                            <Lock className="w-3 h-3 text-white/50" />
+                            <p className="text-[5px] font-black uppercase text-neon-green/80 tracking-tighter mt-0.5">Run to unlock</p>
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-[13px] font-black truncate ${track.id === currentTrack.id ? 'text-neon-green' : 'text-white'}`}>{track.title}</p>
