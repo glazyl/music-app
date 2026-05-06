@@ -252,108 +252,15 @@ export default function App() {
   const dashOffset = 282.7 * (1 - progressPercent);
 
   return (
-    <div className="relative flex flex-col h-screen overflow-hidden text-white font-sans bg-deep-space selection:bg-neon-green selection:text-black">
-      <div className="atmosphere" />
+    <div className="relative flex flex-col items-center justify-center h-screen overflow-hidden text-white font-sans bg-[#020202] selection:bg-neon-green selection:text-black">
+      <div className="atmosphere fixed inset-0 z-0" />
 
-      {/* --- Main Content Container (Responsive) --- */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* --- Main Phone-Sized Container --- */}
+      <div className="relative w-full max-w-[450px] h-full flex flex-col bg-deep-space border-x border-white/5 overflow-hidden z-10 md:shadow-[0_0_100px_rgba(0,0,0,0.8)]">
         
-        {/* --- Sidebar (Desktop Only) --- */}
-        <aside className="hidden md:flex w-72 flex-col glass border-r border-white/5 p-8 space-y-10 z-10">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-neon-green rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(57,255,20,0.4)]">
-              <Activity className="w-6 h-6 text-black" />
-            </div>
-            <span className="text-2xl font-black tracking-tighter font-display italic">STRIDE</span>
-          </div>
-
-          <nav className="flex-1 space-y-8">
-            <div className="space-y-4">
-              <p className="text-[10px] uppercase tracking-widest text-white/40 font-black">Discovery</p>
-              <div className="space-y-2">
-                <div 
-                  onClick={() => setActiveView('home')}
-                  className={`flex items-center space-x-4 font-bold cursor-pointer transition-colors ${activeView === 'home' ? 'text-neon-green' : 'text-white/50 hover:text-white'}`}
-                >
-                  <HomeIcon className="w-5 h-5 opacity-80" />
-                  <span>Home</span>
-                </div>
-                <div 
-                  onClick={() => setActiveView('search')}
-                  className={`flex items-center space-x-4 font-bold cursor-pointer transition-colors ${activeView === 'search' ? 'text-neon-green' : 'text-white/50 hover:text-white'}`}
-                >
-                  <Search className="w-5 h-5 opacity-80" />
-                  <span>Search</span>
-                </div>
-                <div 
-                  onClick={() => setActiveView('run')}
-                  className={`flex items-center space-x-4 font-bold cursor-pointer transition-colors ${activeView === 'run' ? 'text-neon-green' : 'text-white/50 hover:text-white'}`}
-                >
-                  <Activity className="w-5 h-5 opacity-80" />
-                  <span>Run Session</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <p className="text-[10px] uppercase tracking-widest text-white/40 font-black">Collection</p>
-              <div className="space-y-2">
-                 <div 
-                  onClick={() => setActiveView('library')}
-                  className={`flex items-center space-x-4 font-bold cursor-pointer transition-colors ${activeView === 'library' ? 'text-neon-green' : 'text-white/50 hover:text-white'}`}
-                >
-                  <Library className="w-5 h-5 opacity-80" />
-                  <span>Library</span>
-                </div>
-              </div>
-            </div>
-          </nav>
-
-          {/* Improved Run Stat Box */}
-          <div className="mt-auto p-5 rounded-3xl run-stat-box border border-neon-green/20 backdrop-blur-md">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] text-neon-green uppercase font-black tracking-wider">Current Lap</p>
-              {isTracking && <span className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>}
-            </div>
-            <div className="flex items-baseline gap-1">
-              <p className="text-3xl font-black font-display">{points}</p>
-              <p className="text-xs text-white/40 font-bold">Points</p>
-            </div>
-            <div className="text-[10px] text-white/30 font-medium mb-2">
-              Next point: {totalSteps}/{STEPS_PER_POINT} steps
-            </div>
-            <div className="w-full bg-white/10 h-1.5 mt-1 rounded-full overflow-hidden">
-              <motion.div 
-                 animate={{ width: `${progressPercent * 100}%` }}
-                 className="bg-neon-green h-full rounded-full shadow-[0_0_10px_#39FF14]"
-              />
-            </div>
-            <button 
-              onClick={toggleTracking}
-              className={`w-full mt-4 py-3 rounded-2xl text-xs font-black tracking-widest transition-all ${
-                isTracking 
-                ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
-                : 'bg-neon-green text-black hover:scale-[1.02] active:scale-[0.98]'
-              }`}
-            >
-              {isTracking ? 'PAUSE SESSION' : 'START RUN'}
-            </button>
-            
-            <div className="mt-4 pt-4 border-t border-white/5">
-               <button 
-                 onClick={startWatchingAd}
-                 disabled={isWatchingAd}
-                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
-               >
-                 <Play className="w-3 h-3 text-neon-green" />
-                 Watch Ad (+3 pts)
-               </button>
-            </div>
-          </div>
-        </aside>
-
         {/* --- Main Content Area --- */}
-        <main className="flex-1 flex flex-col p-6 md:p-10 overflow-hidden relative z-0 overflow-y-auto custom-scrollbar">
+        <main className="flex-1 flex flex-col p-6 overflow-hidden relative z-0 overflow-y-auto custom-scrollbar pb-32">
+
           {activeView === 'home' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col">
               {/* Mobile Header */}
@@ -707,115 +614,74 @@ export default function App() {
               </button>
           </div>
         </main>
-      </div>
-
-      {/* --- Responsive Player Bar --- */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 px-3 md:px-10 pb-4 md:pb-8 flex flex-col gap-2">
-         {/* Mini Now Playing (Mobile) / Full Bar (Desktop) */}
-         <footer className="h-20 md:h-28 glass rounded-[1.5rem] md:rounded-[2.5rem] px-4 md:px-10 flex items-center justify-between md:space-x-12 border-white/10 shadow-2xl backdrop-blur-3xl">
-          <div className="flex items-center space-x-3 md:space-x-6 w-3/4 md:w-72">
-            <div className="w-12 h-12 md:w-16 md:h-16 bg-neon-green rounded-xl md:rounded-2xl shadow-[0_0_20px_rgba(57,255,20,0.3)] flex items-center justify-center text-black font-black overflow-hidden relative flex-shrink-0">
-              <img src={currentTrack.cover} alt="" className={`w-full h-full object-cover ${isPlaying ? 'animate-[pulse_4s_infinite]' : ''}`} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] md:text-sm font-black text-white truncate">{currentTrack.title}</p>
-              <p className="text-[8px] md:text-xs text-white/40 font-medium truncate italic leading-none">{currentTrack.artist}</p>
-            </div>
-          </div>
-
-          <div className="hidden md:flex flex-1 flex-col items-center space-y-4">
-            <div className="flex items-center space-x-10">
-              <button 
-                onClick={handlePrev}
-                className="opacity-40 hover:opacity-100 transition-opacity transform active:scale-90"
-              >
-                <SkipBack className="w-6 h-6" />
-              </button>
-              <button 
-                onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)}
-                className={`w-14 h-14 rounded-full bg-white text-black flex items-center justify-center text-xl pl-1 shadow-2xl transition-transform hover:scale-110 active:scale-95 ${currentTrack.isLocked ? 'opacity-20 cursor-not-allowed' : ''}`}
-              >
-                {isPlaying && !currentTrack.isLocked ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current" />}
-              </button>
-              <button 
-                onClick={handleNext}
-                className="opacity-40 hover:opacity-100 transition-opacity transform active:scale-90"
-              >
-                <SkipForward className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="w-full max-w-lg flex items-center space-x-4 text-[10px] text-white/30 font-mono tracking-tighter">
-              <span>0:00</span>
-              <div className="flex-1 h-[3px] bg-white/10 rounded-full overflow-hidden cursor-pointer group">
-                <div className="bg-white group-hover:bg-neon-green h-full w-1/3 transition-colors shadow-[0_0_5px_white]" />
-              </div>
-              <span>{currentTrack.duration}</span>
-            </div>
-          </div>
-
-          {/* Quick Play/Pause for Mobile */}
-          <div className="md:hidden flex space-x-4">
-             <button 
-                onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)} 
-                className="w-10 h-10 rounded-full glass border-white/20 flex items-center justify-center"
-              >
-                {isPlaying && !currentTrack.isLocked ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current pl-0.5" />}
-              </button>
-              <button onClick={handleNext} className="w-10 h-10 rounded-full glass border-white/20 flex items-center justify-center">
-                 <SkipForward className="w-5 h-5" />
-              </button>
-          </div>
-
-          <div className="hidden md:flex w-72 justify-end items-center space-x-6">
-             <div className="flex flex-col items-end">
-                <span className="text-[9px] text-white/30 font-black tracking-widest leading-none">GPS ACTIVE</span>
-                <div className="flex space-x-1 items-end h-4 mt-1">
-                  <div className="w-1.5 bg-neon-green h-1 rounded-sm"></div>
-                  <div className="w-1.5 bg-neon-green h-2 rounded-sm shadow-[0_0_5px_#39FF14]"></div>
-                  <div className="w-1.5 bg-neon-green/40 h-3 rounded-sm"></div>
-                  <div className="w-1.5 bg-neon-green/20 h-4 rounded-sm"></div>
-                </div>
-             </div>
-             <div className="w-px h-10 bg-white/10" />
-             <div className="w-10 h-10 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors">
-                <MapPin className="w-5 h-5 opacity-40 hover:opacity-100" />
-             </div>
-          </div>
-        </footer>
-
-        {/* Mobile Nav Bar */}
-        <nav className="md:hidden h-16 glass rounded-2xl flex items-center justify-around px-2 border-white/5">
+        {/* --- Unified Mobile Nav Bar --- */}
+        <nav className="h-20 glass rounded-t-3xl flex items-center justify-around px-6 border-white/10 shrink-0 z-30">
            <div 
             onClick={() => setActiveView('home')}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeView === 'home' ? 'text-neon-green' : 'text-white/30'}`}
+            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${activeView === 'home' ? 'text-neon-green' : 'text-white/30'}`}
           >
               <HomeIcon className="w-5 h-5" />
               <span className="text-[8px] font-black uppercase tracking-widest">Home</span>
            </div>
            <div 
             onClick={() => setActiveView('search')}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeView === 'search' ? 'text-neon-green' : 'text-white/30'}`}
+            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${activeView === 'search' ? 'text-neon-green' : 'text-white/30'}`}
           >
               <Search className="w-5 h-5" />
               <span className="text-[8px] font-black uppercase tracking-widest">Search</span>
            </div>
            <div 
             onClick={() => setActiveView('library')}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeView === 'library' ? 'text-neon-green' : 'text-white/30'}`}
+            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${activeView === 'library' ? 'text-neon-green' : 'text-white/30'}`}
           >
               <Library className="w-5 h-5" />
               <span className="text-[8px] font-black uppercase tracking-widest">Library</span>
            </div>
            <div 
             onClick={() => setActiveView('run')}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeView === 'run' ? 'text-neon-green' : 'text-white/30'}`}
+            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${activeView === 'run' ? 'text-neon-green' : 'text-white/30'}`}
           >
               <Activity className="w-5 h-5" />
               <span className="text-[8px] font-black uppercase tracking-widest">Run</span>
            </div>
         </nav>
+
+        {/* --- Floating Mini Player (Always inside phone container) --- */}
+        <AnimatePresence>
+          {!isWatchingAd && (
+            <motion.div 
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              className="absolute bottom-24 left-0 right-0 px-4 z-40"
+            >
+              <div className="h-16 glass rounded-2xl flex items-center justify-between px-4 border-white/10 shadow-2xl backdrop-blur-3xl">
+                <div className="flex items-center space-x-3 w-3/5">
+                  <div className="w-10 h-10 bg-neon-green rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <img src={currentTrack.cover} alt="" className={`w-full h-full object-cover ${isPlaying ? 'animate-[pulse_4s_infinite]' : ''}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black text-white truncate">{currentTrack.title}</p>
+                    <p className="text-[8px] text-white/40 font-medium truncate italic">{currentTrack.artist}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button 
+                    onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)} 
+                    className="w-10 h-10 rounded-full glass border-white/20 flex items-center justify-center"
+                  >
+                    {isPlaying && !currentTrack.isLocked ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current pl-0.5" />}
+                  </button>
+                  <button onClick={handleNext} className="w-10 h-10 rounded-full glass border-white/20 flex items-center justify-center">
+                    <SkipForward className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+
+
 
       {/* Ad Overlay Sim */}
       <AnimatePresence>
