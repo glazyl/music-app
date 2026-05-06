@@ -4,6 +4,10 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User as FirebaseUser, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import firebaseConfig from '../firebase-applet-config.json';
 import { 
   Play, 
   Pause, 
@@ -21,11 +25,56 @@ import {
   CheckCircle2,
   Clock,
   Heart,
-  User,
+  User as UserIcon,
   Camera,
-  RefreshCw
+  RefreshCw,
+  LogOut,
+  LogIn
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+// --- Firebase Initialization ---
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const auth = getAuth(app);
+
+// --- Error Handling ---
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error:', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 // --- Types ---
 
@@ -120,7 +169,14 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 // --- Components ---
 
 export default function App() {
-  const [activeView, setActiveView] = useState<'home' | 'search' | 'library' | 'run' | 'profile'>('home');
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [activeView, setActiveView] = useState<'home' | 'search' | 'library' | 'run' | 'profile' | 'welcome'>('welcome');
+  const [welcomeAuthMode, setWelcomeAuthMode] = useState<'options' | 'signup' | 'signin'>('options');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthProcessing, setIsAuthProcessing] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -146,6 +202,10 @@ export default function App() {
 
   const [totalSteps, setTotalSteps] = useState(() => {
     return Number(localStorage.getItem('stride_steps') || 523);
+  });
+  const [hourlySteps, setHourlySteps] = useState<number[]>(() => {
+    const saved = localStorage.getItem('stride_hourly_steps');
+    return saved ? JSON.parse(saved) : new Array(24).fill(0);
   });
   const [points, setPoints] = useState(() => {
     return Number(localStorage.getItem('stride_points') || 5);
@@ -182,19 +242,124 @@ export default function App() {
 
   const currentTrack = tracks[currentTrackIndex];
 
-  // Save progress
+  // Auth observer
   useEffect(() => {
-    localStorage.setItem('stride_tracks_v2', JSON.stringify(tracks));
-    localStorage.setItem('stride_points', points.toString());
-    localStorage.setItem('stride_steps', totalSteps.toString());
-    localStorage.setItem('stride_profile_name', profileName);
-    localStorage.setItem('stride_profile_avatar_seed', profileAvatarSeed);
-    if (profilePhoto) {
-      localStorage.setItem('stride_profile_photo', profilePhoto);
-    } else {
-      localStorage.removeItem('stride_profile_photo');
+    return onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setIsAuthLoading(false);
+      if (u) {
+        if (activeView === 'welcome') setActiveView('home');
+      } else {
+        setActiveView('welcome');
+      }
+    });
+  }, [activeView]);
+
+  // Firestore Sync
+  useEffect(() => {
+    if (!user) return;
+
+    const userDocRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setPoints(data.points || 0);
+        setTotalSteps(data.totalSteps || 0);
+        setHourlySteps(data.hourlySteps || new Array(24).fill(0));
+        setProfileName(data.name || user.displayName || 'Stride Walker');
+        setProfileAvatarSeed(data.avatarSeed || user.uid);
+        setProfilePhoto(data.photoURL || null);
+        
+        if (data.unlockedTrackIds) {
+          setTracks(prev => prev.map(t => ({
+            ...t,
+            isLocked: !data.unlockedTrackIds.includes(t.id) && t.id !== '1'
+          })));
+        }
+      } else {
+        // Initialize new user
+        const initialData = {
+          uid: user.uid,
+          name: user.displayName || 'New Runner',
+          avatarSeed: user.uid,
+          photoURL: user.photoURL,
+          points: 5,
+          totalSteps: 0,
+          hourlySteps: new Array(24).fill(0),
+          unlockedTrackIds: ['1'],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        setDoc(userDocRef, initialData).catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}`));
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const syncToFirestore = async (updates: any) => {
+    if (!user) return;
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      await updateDoc(userDocRef, {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
     }
-  }, [tracks, points, totalSteps, profileName, profileAvatarSeed, profilePhoto]);
+  };
+
+  // Sync Total Steps and History to Firestore (Debounced)
+  useEffect(() => {
+    if (!user) return;
+    const timer = setTimeout(() => {
+      syncToFirestore({ totalSteps, hourlySteps });
+      localStorage.setItem('stride_hourly_steps', JSON.stringify(hourlySteps));
+    }, 2000); // Sync after 2s of no changes
+    return () => clearTimeout(timer);
+  }, [totalSteps, hourlySteps, user]);
+
+  const handleSignIn = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Sign in failed", error);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      setActiveView('welcome');
+      setWelcomeAuthMode('options');
+      setEmail('');
+      setPassword('');
+      setAuthError(null);
+    } catch (error) {
+      console.error("Sign out failed", error);
+    }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAuthProcessing(true);
+    setAuthError(null);
+    try {
+      if (welcomeAuthMode === 'signup') {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    } catch (error: any) {
+      console.error("Auth failed", error);
+      setAuthError(error.message);
+      setIsAuthProcessing(false);
+    }
+  };
 
   // Reset progress when track changes
   useEffect(() => {
@@ -280,7 +445,16 @@ export default function App() {
             if (prev) {
               const dist = calculateDistance(prev.lat, prev.lng, latitude, longitude);
               if (dist > 0.5) { 
-                setTotalSteps(s => s + Math.max(1, Math.round(dist * 1.3)));
+                const newSteps = Math.max(1, Math.round(dist * 1.3));
+                setTotalSteps(s => s + newSteps);
+                
+                // Track hourly history
+                const currentHour = new Date().getHours();
+                setHourlySteps(prevHistory => {
+                  const newHistory = [...prevHistory];
+                  newHistory[currentHour] = (newHistory[currentHour] || 0) + newSteps;
+                  return newHistory;
+                });
               }
             }
             return { lat: latitude, lng: longitude };
@@ -321,7 +495,11 @@ export default function App() {
       }, 1000);
     } else if (isWatchingAd && adTimer === 0) {
       setIsWatchingAd(false);
-      setPoints(prev => prev + AD_REWARD_POINTS);
+      if (user) {
+        syncToFirestore({ points: points + AD_REWARD_POINTS });
+      } else {
+        setPoints(prev => prev + AD_REWARD_POINTS);
+      }
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -332,39 +510,47 @@ export default function App() {
   useEffect(() => {
     if (totalSteps >= STEPS_PER_POINT) {
       const newPoints = Math.floor(totalSteps / STEPS_PER_POINT);
-      setPoints(prev => prev + newPoints);
-      setTotalSteps(prev => prev % STEPS_PER_POINT);
+      const remainingSteps = totalSteps % STEPS_PER_POINT;
+      
+      if (user) {
+        syncToFirestore({
+          points: points + newPoints,
+          totalSteps: remainingSteps
+        });
+      } else {
+        setPoints(prev => prev + newPoints);
+        setTotalSteps(remainingSteps);
+      }
     }
-  }, [totalSteps]);
-
-  // Automatic tracking when entering Run view
-  useEffect(() => {
-    if (activeView === 'run' && !isTracking) {
-      // Small delay to ensure view is ready
-      const timer = setTimeout(() => {
-        if (!isTracking) toggleTracking();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [activeView]);
+  }, [totalSteps, user]);
 
   // Check for unlocks using points
   useEffect(() => {
     const nextLocked = tracks.find(t => t.isLocked);
     if (nextLocked && points >= POINTS_PER_SONG) {
-      setTracks(prev => {
-        const next = [...prev];
-        const index = next.findIndex(t => t.id === nextLocked.id);
-        if (index !== -1) {
-          next[index] = { ...next[index], isLocked: false };
-        }
-        return next;
-      });
-      setPoints(prev => prev - POINTS_PER_SONG);
+      const unlockedIds = tracks.filter(t => !t.isLocked).map(t => t.id);
+      unlockedIds.push(nextLocked.id);
+
+      if (user) {
+        syncToFirestore({
+          points: points - POINTS_PER_SONG,
+          unlockedTrackIds: unlockedIds
+        });
+      } else {
+        setTracks(prev => {
+          const next = [...prev];
+          const index = next.findIndex(t => t.id === nextLocked.id);
+          if (index !== -1) {
+            next[index] = { ...next[index], isLocked: false };
+          }
+          return next;
+        });
+        setPoints(prev => prev - POINTS_PER_SONG);
+      }
       setIsUnlockedMode(true);
       setTimeout(() => setIsUnlockedMode(false), 3000);
     }
-  }, [points, tracks]);
+  }, [points, tracks, user]);
 
   const handleNext = () => {
     setCurrentTrackIndex(prev => (prev + 1) % tracks.length);
@@ -393,6 +579,15 @@ export default function App() {
 
   const progressPercent = Math.min(points / POINTS_PER_SONG, 1);
   const dashOffset = 282.7 * (1 - progressPercent);
+
+  const stepProgressPercent = Math.min(totalSteps / STEPS_PER_POINT, 1);
+  const stepDashOffset = 282.7 * (1 - stepProgressPercent);
+
+  const totalStepsOverall = totalSteps + (points * STEPS_PER_POINT);
+  const calories = totalStepsOverall * 0.04;
+  const calGoal = 500;
+  const calProgressPercent = Math.min(calories / calGoal, 1);
+  const calDashOffset = 219.9 * (1 - calProgressPercent);
 
   const parseDurationToSeconds = (durationStr: string) => {
     const parts = durationStr.split(':');
@@ -465,8 +660,128 @@ export default function App() {
         <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/20 rounded-full z-[100]" />
 
         {/* --- Main Content Area --- */}
-        <main className="flex-1 flex flex-col p-6 pt-16 overflow-hidden relative z-0 overflow-y-auto hidden-scrollbar pb-32">
+        <main className="flex-1 flex flex-col p-6 pt-16 relative z-0 overflow-y-auto hidden-scrollbar pb-56">
+          
+          {isAuthLoading && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
+              <RefreshCw className="w-8 h-8 text-neon-green animate-spin" />
+            </div>
+          )}
 
+          {activeView === 'welcome' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col h-full items-center justify-center text-center">
+              <div className="w-20 h-20 bg-neon-green rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(57,255,20,0.4)] mb-10">
+                <Activity className="w-12 h-12 text-black" />
+              </div>
+              <h1 className="text-4xl font-heavy mb-4 tracking-tighter">Welcome to <span className="text-neon-green">STRIDE</span></h1>
+              <p className="text-white/40 text-sm max-w-[240px] mb-12 font-medium leading-relaxed">
+                Connect your account to sync your progress, unlocks, and profile across all devices.
+              </p>
+              
+              <AnimatePresence mode="wait">
+                {welcomeAuthMode === 'options' ? (
+                  <motion.div 
+                    key="options"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="w-full flex flex-col gap-4"
+                  >
+                    <button 
+                      onClick={handleSignIn}
+                      className="w-full flex items-center justify-center gap-4 bg-white text-black py-5 rounded-2xl font-black text-sm uppercase tracking-[0.2em] active:scale-[0.98] transition-transform shadow-xl"
+                    >
+                      <div className="w-5 h-5 flex items-center justify-center">
+                        <svg viewBox="0 0 24 24" className="w-full h-full">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                          <path d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18c-.77 1.56-1.21 3.31-1.21 5.14 0 1.83.44 3.58 1.21 5.14l3.66-2.84z" fill="#FBBC05" />
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
+                        </svg>
+                      </div>
+                      Continue with Google
+                    </button>
+
+                    <button 
+                      onClick={() => setWelcomeAuthMode('signup')}
+                      className="w-full flex items-center justify-center gap-4 bg-white/5 border border-white/10 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-[0.2em] active:scale-[0.98] transition-transform"
+                    >
+                      Create Account
+                    </button>
+
+                    <button 
+                      onClick={() => setWelcomeAuthMode('signin')}
+                      className="text-[10px] font-black uppercase text-neon-green/60 tracking-[0.2em] py-2"
+                    >
+                      Already have an account? Sign In
+                    </button>
+                  </motion.div>
+                ) : (
+                  <motion.form 
+                    key="form"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    onSubmit={handleEmailAuth}
+                    className="w-full flex flex-col gap-4"
+                  >
+                    <div className="flex flex-col gap-2">
+                       <input 
+                         type="email" 
+                         placeholder="Email Address"
+                         required
+                         value={email}
+                         onChange={(e) => setEmail(e.target.value)}
+                         className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:border-neon-green/50 outline-none transition-colors"
+                       />
+                       <input 
+                         type="password" 
+                         placeholder="Password"
+                         required
+                         value={password}
+                         onChange={(e) => setPassword(e.target.value)}
+                         className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:border-neon-green/50 outline-none transition-colors"
+                       />
+                    </div>
+
+                    {authError && (
+                      <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider">{authError}</p>
+                    )}
+
+                    <button 
+                      disabled={isAuthProcessing}
+                      type="submit"
+                      className="w-full bg-neon-green text-black py-5 rounded-2xl font-black text-sm uppercase tracking-[0.2em] active:scale-[0.98] transition-transform shadow-[0_0_20px_rgba(57,255,20,0.2)] disabled:opacity-50"
+                    >
+                      {isAuthProcessing ? (
+                        <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
+                      ) : (
+                        welcomeAuthMode === 'signup' ? 'Sign Up' : 'Sign In'
+                      )}
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setWelcomeAuthMode('options');
+                        setAuthError(null);
+                      }}
+                      className="text-[10px] font-black uppercase text-white/30 tracking-[0.2em] py-2"
+                    >
+                      Back to Options
+                    </button>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+
+              <button 
+                onClick={() => setActiveView('home')}
+                className="text-xs font-black uppercase text-white/20 tracking-widest py-4 mt-4"
+              >
+                Continue as Guest
+              </button>
+            </motion.div>
+          )}
           {activeView === 'home' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col w-full">
               {/* Header */}
@@ -492,27 +807,179 @@ export default function App() {
               <div className="flex flex-col items-center">
                 <div className="w-full text-left mb-10">
                    <h1 className="text-3xl font-heavy mb-1">Stay active, <span className="text-neon-green">{profileName.split(' ')[0]}</span></h1>
-                   <p className="text-white/40 text-xs font-bold uppercase tracking-wider">Next session in 2 hours</p>
+                   <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${isTracking ? 'bg-neon-green animate-pulse' : 'bg-white/20'}`} />
+                      <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
+                        {isTracking ? 'Session Active • GPS Live' : 'Ready to Run • Press Start'}
+                      </p>
+                   </div>
                 </div>
 
-                {/* Circular Progress Ring - Centered */}
-                <div className="relative w-72 h-72 flex-shrink-0 flex items-center justify-center mb-12">
-                  <svg className="progress-ring w-full h-full drop-shadow-[0_0_20px_rgba(0,0,0,0.5)]" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="45" stroke="rgba(255,255,255,0.03)" strokeWidth="3" fill="transparent" />
+                {/* Circular Activity Ring - Centered */}
+                <div className="relative w-85 h-85 flex-shrink-0 flex items-center justify-center mb-10">
+                  <svg className="progress-ring w-full h-full drop-shadow-[0_0_25px_rgba(0,0,0,0.6)]" viewBox="0 0 100 100">
+                    {/* Background Tracks */}
+                    <circle cx="50" cy="50" r="45" stroke="rgba(57,255,20,0.05)" strokeWidth="8" fill="transparent" />
+                    <circle cx="50" cy="50" r="36" stroke="rgba(255,77,77,0.05)" strokeWidth="8" fill="transparent" />
+                    
+                    {/* Ring 1: Steps (Neon Green) */}
                     <motion.circle 
-                      cx="50" cy="50" r="45" stroke="#39FF14" strokeWidth="4" fill="transparent" strokeDasharray="282.7" 
-                      animate={{ strokeDashoffset: dashOffset }}
-                      transition={{ type: "spring", stiffness: 30, damping: 15 }}
-                      strokeLinecap="round" className="drop-shadow-[0_0_12px_rgba(57,255,20,0.6)]" 
+                      cx="50" cy="50" r="45" stroke="#39FF14" strokeWidth="8" fill="transparent" 
+                      strokeDasharray="282.7" 
+                      animate={{ strokeDashoffset: 282.7 * (1 - stepProgressPercent) }}
+                      transition={{ type: "spring", stiffness: 40, damping: 20 }}
+                      strokeLinecap="round" className="drop-shadow-[0_0_12px_rgba(57,255,20,0.5)]" 
+                    />
+
+                    {/* Ring 2: Calories (Vibrant Red) */}
+                    <motion.circle 
+                      cx="50" cy="50" r="36" stroke="#FF4D4D" strokeWidth="8" fill="transparent" 
+                      strokeDasharray="226.2" 
+                      animate={{ strokeDashoffset: 226.2 * (1 - calProgressPercent) }}
+                      transition={{ type: "spring", stiffness: 40, damping: 20, delay: 0.1 }}
+                      strokeLinecap="round" className="drop-shadow-[0_0_10px_rgba(255,77,77,0.4)]" 
                     />
                   </svg>
+                  
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <p className="text-[10px] text-white/30 uppercase tracking-[0.25em] font-black">Goal Progress</p>
-                    <p className="text-7xl font-black neon-glow font-display leading-none">
-                      {Math.max(POINTS_PER_SONG - points, 0).toFixed(0)}<span className="text-xl ml-1 font-medium font-sans">pts</span>
-                    </p>
-                    <p className="text-[10px] text-neon-green mt-3 font-heavy tracking-widest uppercase">To Unlock Next Song</p>
+                    <div className="flex flex-col items-center mb-1">
+                      <p className="text-[11px] text-white/30 uppercase tracking-[0.4em] font-black">Steps</p>
+                      <p className="text-6xl font-black neon-glow font-display leading-[0.8] mt-2 mb-1">{totalStepsOverall}</p>
+                    </div>
+                    
+                    <div className="h-[2px] w-8 bg-white/10 my-3 rounded-full" />
+
+                    <div className="flex flex-col items-center">
+                      <p className="text-[10px] text-[#FF4D4D]/60 uppercase tracking-[0.4em] font-black">kcal</p>
+                      <p className="text-3xl font-black text-[#FF4D4D] font-display mt-1">{calories.toFixed(0)}</p>
+                    </div>
+
+                    <div className="absolute -bottom-8 flex items-center gap-2">
+                       <span className="px-3 py-1 bg-neon-green/10 rounded-full text-[10px] text-neon-green font-black uppercase tracking-wider border border-neon-green/20">
+                         {points} PTS EARNED
+                       </span>
+                    </div>
                   </div>
+                </div>
+
+                {/* Main Action Button */}
+                <div className="w-full mb-12 space-y-4">
+                  <button 
+                    onClick={toggleTracking}
+                    className={`w-full py-6 rounded-[2rem] text-lg font-black tracking-[0.2em] transition-all uppercase active:scale-95 ${
+                      isTracking 
+                      ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
+                      : 'bg-neon-green text-black shadow-[0_0_30px_rgba(57,255,20,0.3)]'
+                    }`}
+                  >
+                    {isTracking ? 'STOP RUN' : 'START RUN'}
+                  </button>
+
+                  <AnimatePresence>
+                    {gpsError && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        exit={{ opacity: 0, y: -10 }}
+                        className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl w-full"
+                      >
+                        <p className="text-red-500 text-[10px] font-black uppercase tracking-tighter text-center">
+                          GPS Error: {gpsError}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Health Stat Cards */}
+                <div className="grid grid-cols-2 gap-4 w-full mb-12">
+                  {/* Step Count Card */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-[#1C1C1E] rounded-2xl p-4 shadow-2xl border border-white/5 flex flex-col h-48 relative overflow-hidden"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-2 h-2 rounded-full bg-[#FF453A]" />
+                      <span className="text-[#FF453A] text-[10px] font-bold uppercase tracking-wider">Step Count</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-white/40 text-[10px] font-medium">Today</span>
+                      <span className="text-3xl font-semibold text-[#FF453A] tracking-tight">{totalStepsOverall.toLocaleString()}</span>
+                    </div>
+                    
+                    {/* Mini Bar Graph */}
+                    <div className="mt-auto flex items-end justify-between gap-1 h-12 relative">
+                      <div className="absolute inset-0 border-b border-white/5 flex flex-col justify-between py-1">
+                        <div className="w-full h-[0.5px] bg-white/5" />
+                        <div className="w-full h-[0.5px] bg-white/5" />
+                      </div>
+                      {(() => {
+                        const aggregated = [];
+                        for (let i = 0; i < 24; i += 2) {
+                          aggregated.push(hourlySteps[i] + (hourlySteps[i+1] || 0));
+                        }
+                        const max = Math.max(...aggregated, 1);
+                        return aggregated.map((val, i) => (
+                          <div 
+                            key={i} 
+                            className={`w-full rounded-t-sm transition-all duration-500 ${val > 0 ? 'bg-[#FF453A]/40' : 'bg-white/5'}`}
+                            style={{ height: `${val > 0 ? (val / max) * 100 : 5}%` }} 
+                          />
+                        ));
+                      })()}
+                    </div>
+                    <div className="flex justify-between mt-1 px-0.5">
+                      <span className="text-[7px] text-white/20 font-black">6AM</span>
+                      <span className="text-[7px] text-white/20 font-black">12PM</span>
+                      <span className="text-[7px] text-white/20 font-black">6PM</span>
+                    </div>
+                  </motion.div>
+
+                  {/* Step Distance Card */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-[#1C1C1E] rounded-2xl p-4 shadow-2xl border border-white/5 flex flex-col h-48 relative overflow-hidden"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-2 h-2 rounded-full bg-[#64D2FF]" />
+                      <span className="text-[#64D2FF] text-[10px] font-bold uppercase tracking-wider">Distance</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-white/40 text-[10px] font-medium">Today</span>
+                      <span className="text-3xl font-semibold text-[#64D2FF] tracking-tight">{(totalStepsOverall * 0.00076).toFixed(2)}<span className="text-sm ml-0.5 font-medium">km</span></span>
+                    </div>
+                    
+                    {/* Mini Bar Graph */}
+                    <div className="mt-auto flex items-end justify-between gap-1 h-12 relative">
+                      <div className="absolute inset-0 border-b border-white/5 flex flex-col justify-between py-1">
+                        <div className="w-full h-[0.5px] bg-white/5" />
+                        <div className="w-full h-[0.5px] bg-white/5" />
+                      </div>
+                      {(() => {
+                        const aggregated = [];
+                        for (let i = 0; i < 24; i += 2) {
+                          aggregated.push(hourlySteps[i] + (hourlySteps[i+1] || 0));
+                        }
+                        const max = Math.max(...aggregated, 1);
+                        return aggregated.map((val, i) => (
+                          <div 
+                            key={i} 
+                            className={`w-full rounded-t-sm transition-all duration-500 ${val > 0 ? 'bg-[#64D2FF]/40' : 'bg-white/5'}`}
+                            style={{ height: `${val > 0 ? (val / max) * 100 : 5}%` }} 
+                          />
+                        ));
+                      })()}
+                    </div>
+                    <div className="flex justify-between mt-1 px-0.5">
+                      <span className="text-[7px] text-white/20 font-black">6AM</span>
+                      <span className="text-[7px] text-white/20 font-black">12PM</span>
+                      <span className="text-[7px] text-white/20 font-black">6PM</span>
+                    </div>
+                  </motion.div>
                 </div>
 
                 {/* List Section */}
@@ -673,92 +1140,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {activeView === 'run' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full items-center">
-               <div className="w-full text-left mb-10 flex justify-between items-end">
-                  <div>
-                    <h2 className="text-3xl font-heavy">Current Run</h2>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Session Active • GPS Live</p>
-                  </div>
-               </div>
-
-               <div className="relative mb-12 flex items-center justify-center">
-                  <motion.div 
-                    animate={{ scale: isTracking ? [1, 1.02, 1] : 1 }} 
-                    transition={{ repeat: Infinity, duration: 3 }}
-                    className="w-72 h-72 rounded-full border-4 border-white/5 flex flex-col items-center justify-center relative shadow-[0_0_60px_rgba(0,0,0,0.5)]"
-                  >
-                     <div className="atmosphere opacity-10" />
-                     <p className="text-[10px] text-white/30 uppercase tracking-[0.3em] font-black mb-2">Total Steps</p>
-                     <p className="text-7xl font-black neon-glow font-display leading-none">{totalSteps + (points * STEPS_PER_POINT)}</p>
-                     <p className="text-sm text-neon-green mt-3 font-heavy tracking-widest uppercase">{points} Points</p>
-                     
-                     <svg className="absolute inset-0 w-full h-full -rotate-90 scale-[1.02]">
-                        <motion.circle 
-                          cx="50%" cy="50%" r="48%" 
-                          stroke="#39FF14" strokeWidth="4" fill="transparent"
-                          strokeDasharray="1413"
-                          animate={{ strokeDashoffset: 1413 * (1 - (totalSteps % STEPS_PER_POINT) / STEPS_PER_POINT) }}
-                          transition={{ type: "spring", stiffness: 20, damping: 10 }}
-                          strokeLinecap="round"
-                          className="drop-shadow-[0_0_8px_rgba(57,255,20,0.4)]"
-                        />
-                     </svg>
-                  </motion.div>
-               </div>
-
-               <div className="grid grid-cols-2 gap-4 w-full mb-10">
-                  <div className="bg-[#111] p-6 rounded-3xl border border-white/5">
-                     <p className="text-[9px] text-white/30 font-black uppercase mb-1 tracking-wider">Step Goal</p>
-                     <p className="text-xl font-black">{totalSteps % STEPS_PER_POINT}<span className="text-[10px] text-white/20 ml-1">/ {STEPS_PER_POINT}</span></p>
-                  </div>
-                  <div className="bg-[#111] p-6 rounded-3xl border border-white/5">
-                     <p className="text-[9px] text-white/30 font-black uppercase mb-1 tracking-wider">Point Goal</p>
-                     <p className="text-xl font-black">{points}<span className="text-[10px] text-white/20 ml-1">/ {POINTS_PER_SONG}</span></p>
-                  </div>
-               </div>
-
-               <button 
-                 onClick={toggleTracking}
-                 className={`w-full py-6 rounded-[2rem] text-lg font-black tracking-[0.2em] transition-all uppercase active:scale-95 ${
-                   isTracking 
-                   ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
-                   : 'bg-neon-green text-black shadow-[0_0_30px_rgba(57,255,20,0.3)]'
-                 }`}
-               >
-                 {isTracking ? 'STOP RUN' : 'START RUN'}
-               </button>
-
-               <AnimatePresence>
-                 {gpsError && (
-                   <motion.div 
-                     initial={{ opacity: 0, y: -10 }} 
-                     animate={{ opacity: 1, y: 0 }} 
-                     exit={{ opacity: 0, y: -10 }}
-                     className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl w-full"
-                   >
-                     <p className="text-red-500 text-[10px] font-black uppercase tracking-tighter text-center">
-                       GPS Error: {gpsError}
-                     </p>
-                   </motion.div>
-                 )}
-               </AnimatePresence>
-
-               <div className="mt-8 w-full">
-                  <div 
-                    onClick={startWatchingAd}
-                    className="bg-white/5 p-4 rounded-2xl border border-white/10 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform"
-                  >
-                     <div className="flex items-center gap-3">
-                        <Play className="w-4 h-4 text-neon-green" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Watch ad for +3 Points</span>
-                     </div>
-                     <SkipForward className="w-3 h-3 text-white/20" />
-                  </div>
-               </div>
-            </motion.div>
-          )}
-
           {activeView === 'profile' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full items-center">
                <AnimatePresence mode="wait">
@@ -820,7 +1201,7 @@ export default function App() {
                                   className="w-8 h-8 bg-red-500/20 border border-red-500/20 rounded-xl flex items-center justify-center backdrop-blur-md active:scale-90 transition-transform shadow-lg"
                                   title="Remove Photo"
                                 >
-                                  <User className="w-4 h-4 text-red-500" />
+                                  <UserIcon className="w-4 h-4 text-red-500" />
                                 </button>
                              )}
                           </div>
@@ -856,9 +1237,17 @@ export default function App() {
 
                         <button 
                           onClick={() => {
-                            setProfileName(editName);
-                            setProfileAvatarSeed(editAvatarSeed);
-                            setProfilePhoto(editPhoto);
+                            if (user) {
+                              syncToFirestore({
+                                name: editName,
+                                avatarSeed: editAvatarSeed,
+                                photoURL: editPhoto
+                              });
+                            } else {
+                              setProfileName(editName);
+                              setProfileAvatarSeed(editAvatarSeed);
+                              setProfilePhoto(editPhoto);
+                            }
                             setIsEditingProfile(false);
                           }}
                           className="w-full py-5 bg-neon-green text-black rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(57,255,20,0.2)] active:scale-[0.98] transition-transform"
@@ -925,24 +1314,13 @@ export default function App() {
                                Edit
                              </button>
                           </div>
-                          <div className="bg-[#111] rounded-3xl border border-white/5 divide-y divide-white/5 overflow-hidden">
-                            {[
-                              { icon: MapPin, label: 'Location Preferences' },
-                              { icon: Activity, label: 'Tracking Sensitivity' },
-                              { icon: Heart, label: 'Health Integration' },
-                              { icon: User, label: 'Personal Details' }
-                            ].map((item, i) => (
-                                <div key={i} className="p-5 flex items-center justify-between active:bg-white/5 transition-colors cursor-pointer group">
-                                  <div className="flex items-center gap-4">
-                                      <item.icon className="w-4 h-4 text-white/40 group-active:text-neon-green" />
-                                      <span className="text-sm font-bold text-white/80">{item.label}</span>
-                                  </div>
-                                  <SkipForward className="w-3 h-3 text-white/10" />
-                                </div>
-                            ))}
-                          </div>
+
                           
-                          <button className="w-full py-5 text-red-500/60 font-black text-xs uppercase tracking-[0.2em] hover:text-red-500 transition-colors">
+                          <button 
+                            onClick={handleSignOut}
+                            className="w-full py-5 text-red-500/60 font-black text-xs uppercase tracking-[0.2em] hover:text-red-500 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <LogOut className="w-4 h-4" />
                             Sign Out
                           </button>
                       </div>
@@ -957,40 +1335,35 @@ export default function App() {
           </div>
         </main>
         {/* --- Unified Mobile Nav Bar (iOS Style) --- */}
-        <nav className="absolute bottom-0 left-0 right-0 h-20 bg-black/40 backdrop-blur-3xl flex items-center justify-around px-6 border-t border-white/5 pb-5 shrink-0 z-[60]">
-           <button 
-            onClick={() => setActiveView('home')}
-            className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'home' ? 'text-neon-green' : 'text-white/30'}`}
-          >
-              <HomeIcon className="w-6 h-6" />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Home</span>
-           </button>
-           <button 
-            onClick={() => setActiveView('search')}
-            className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'search' ? 'text-neon-green' : 'text-white/30'}`}
-          >
-              <Search className="w-6 h-6" />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Search</span>
-           </button>
-           <button 
-            onClick={() => setActiveView('library')}
-            className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'library' ? 'text-neon-green' : 'text-white/30'}`}
-          >
-              <Library className="w-6 h-6" />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Library</span>
-           </button>
-           <button 
-            onClick={() => setActiveView('run')}
-            className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'run' ? 'text-neon-green' : 'text-white/30'}`}
-          >
-              <Activity className="w-6 h-6" />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Run</span>
-           </button>
-        </nav>
+        {activeView !== 'welcome' && (
+          <nav className="absolute bottom-0 left-0 right-0 h-20 bg-black/40 backdrop-blur-3xl flex items-center justify-around px-6 border-t border-white/5 pb-5 shrink-0 z-[60]">
+             <button 
+              onClick={() => setActiveView('home')}
+              className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'home' ? 'text-neon-green' : 'text-white/30'}`}
+            >
+                <HomeIcon className="w-6 h-6" />
+                <span className="text-[9px] font-bold uppercase tracking-widest">Home</span>
+             </button>
+             <button 
+              onClick={() => setActiveView('search')}
+              className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'search' ? 'text-neon-green' : 'text-white/30'}`}
+            >
+                <Search className="w-6 h-6" />
+                <span className="text-[9px] font-bold uppercase tracking-widest">Search</span>
+             </button>
+             <button 
+              onClick={() => setActiveView('library')}
+              className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'library' ? 'text-neon-green' : 'text-white/30'}`}
+            >
+                <Library className="w-6 h-6" />
+                <span className="text-[9px] font-bold uppercase tracking-widest">Library</span>
+             </button>
+          </nav>
+        )}
 
         {/* --- Floating Mini Player (iOS Style) --- */}
         <AnimatePresence>
-          {!isWatchingAd && !showFullPlayer && (
+          {activeView !== 'welcome' && !isWatchingAd && !showFullPlayer && (
             <motion.div 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
