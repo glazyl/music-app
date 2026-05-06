@@ -261,7 +261,10 @@ export default function App() {
 
   const toggleTracking = () => {
     if (isTracking) {
-      if (watcherRef.current) navigator.geolocation.clearWatch(watcherRef.current);
+      if (watcherRef.current !== null) {
+        navigator.geolocation.clearWatch(watcherRef.current);
+        watcherRef.current = null;
+      }
       setIsTracking(false);
     } else {
       if (!navigator.geolocation) {
@@ -273,30 +276,34 @@ export default function App() {
       watcherRef.current = navigator.geolocation.watchPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
-          if (lastCoords) {
-            const dist = calculateDistance(lastCoords.lat, lastCoords.lng, latitude, longitude);
-            if (dist > 0.5) { // Lowered threshold slightly for better sensitivity
-              setTotalSteps(prev => prev + Math.max(1, Math.round(dist * 1.3)));
+          setLastCoords(prev => {
+            if (prev) {
+              const dist = calculateDistance(prev.lat, prev.lng, latitude, longitude);
+              if (dist > 0.5) { 
+                setTotalSteps(s => s + Math.max(1, Math.round(dist * 1.3)));
+              }
             }
-          }
-          setLastCoords({ lat: latitude, lng: longitude });
+            return { lat: latitude, lng: longitude };
+          });
         },
         (err) => {
-          console.error(err);
-          setGpsError(err.message);
+          console.error("GPS Error:", err);
+          setGpsError(err.message === "User denied Geolocation" ? "Location permission denied. Please enable GPS." : err.message);
           setIsTracking(false);
+          watcherRef.current = null;
         },
         { 
           enableHighAccuracy: true,
-          timeout: 5000,
+          timeout: 10000,
           maximumAge: 0
         }
       );
-    }
-  };
 
-  const incrementMockSteps = () => {
-    setTotalSteps(prev => prev + 50);
+      // Also auto-play if music is paused
+      if (!isPlaying && !tracks[currentTrackIndex].isLocked) {
+        setIsPlaying(true);
+      }
+    }
   };
 
   const startWatchingAd = () => {
@@ -329,6 +336,17 @@ export default function App() {
       setTotalSteps(prev => prev % STEPS_PER_POINT);
     }
   }, [totalSteps]);
+
+  // Automatic tracking when entering Run view
+  useEffect(() => {
+    if (activeView === 'run' && !isTracking) {
+      // Small delay to ensure view is ready
+      const timer = setTimeout(() => {
+        if (!isTracking) toggleTracking();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeView]);
 
   // Check for unlocks using points
   useEffect(() => {
@@ -662,12 +680,6 @@ export default function App() {
                     <h2 className="text-3xl font-heavy">Current Run</h2>
                     <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Session Active • GPS Live</p>
                   </div>
-                  <button 
-                    onClick={incrementMockSteps}
-                    className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase text-neon-green/60 tracking-widest active:scale-95 transition-transform"
-                  >
-                    Simulate +50 Steps
-                  </button>
                </div>
 
                <div className="relative mb-12 flex items-center justify-center">
@@ -942,12 +954,6 @@ export default function App() {
 
           {/* Dev Utils for Testing (Hidden deep) */}
           <div className="mt-auto pt-20">
-             <button 
-                onClick={incrementMockSteps}
-                className="opacity-0 hover:opacity-10 transition-opacity text-[8px] uppercase font-black"
-              >
-                Cheat: 50 Steps
-              </button>
           </div>
         </main>
         {/* --- Unified Mobile Nav Bar (iOS Style) --- */}
