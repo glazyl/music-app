@@ -62,7 +62,7 @@ const SAMPLE_TRACKS: Track[] = [
     artist: 'Sabrina Carpenter',
     duration: '3:33',
     cover: 'https://images.genius.com/5b099a4fe7bc649900fd54fd4dd747f9.1000x1000x1.png',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    url: '',
     isLocked: true,
     bpm: 140
   },
@@ -72,7 +72,7 @@ const SAMPLE_TRACKS: Track[] = [
     artist: 'PinkPantheress, Zara Larsson',
     duration: '3:04',
     cover: 'https://images.genius.com/f3eff0988933e71aba2424313b12fe59.1000x1000x1.png',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    url: '',
     isLocked: true,
     bpm: 165
   },
@@ -82,7 +82,7 @@ const SAMPLE_TRACKS: Track[] = [
     artist: 'Charli xcx',
     duration: '4:56',
     cover: 'https://images.genius.com/e618acfa672295153b4a390066c58576.1000x1000x1.png',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    url: '',
     isLocked: true,
     bpm: 155
   },
@@ -92,7 +92,7 @@ const SAMPLE_TRACKS: Track[] = [
     artist: 'Britney Spears',
     duration: '3:44',
     cover: 'https://images.genius.com/e8ef9cf7f7ace6101517128b7eec657b.300x300x1.jpg',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
+    url: '',
     isLocked: true,
     bpm: 172
   }
