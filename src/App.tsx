@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import ReactPlayer from 'react-player';
 import { 
   Play, 
   Pause, 
@@ -53,7 +52,7 @@ const SAMPLE_TRACKS: Track[] = [
     artist: 'Ashtine Olviga',
     duration: '2:57',
     cover: 'https://images.genius.com/09f580e348cb09c3443582e525cca603.640x640x1.jpg',
-    url: 'https://soundcloud.com/rataj-ayman-255838578/love-like-u-ashtine-olviga?si=3d711b44a25946bbb569746a4ef46906&utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing',
+    url: '',
     isLocked: false,
     bpm: 128
   },
@@ -146,14 +145,12 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [songDuration, setSongDuration] = useState(0);
   const [isBuffering, setIsBuffering] = useState(false);
-  const [isPlayerReady, setIsPlayerReady] = useState(false);
 
   // Reset progress when track changes
   useEffect(() => {
     setCurrentTime(0);
     setSongDuration(0);
     setIsBuffering(false);
-    setIsPlayerReady(false);
   }, [currentTrackIndex]);
 
   const [totalSteps, setTotalSteps] = useState(() => {
@@ -172,8 +169,7 @@ export default function App() {
   const [isWatchingAd, setIsWatchingAd] = useState(false);
   const [adTimer, setAdTimer] = useState(0);
 
-  const playerRef = useRef<ReactPlayer>(null);
-
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const watcherRef = useRef<number | null>(null);
 
   const currentTrack = tracks[currentTrackIndex];
@@ -185,10 +181,52 @@ export default function App() {
     localStorage.setItem('stride_steps', totalSteps.toString());
   }, [tracks, points, totalSteps]);
 
+  // Handle music player events
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleLoadedMetadata = () => setSongDuration(audio.duration);
+    const handleWaiting = () => setIsBuffering(true);
+    const handlePlaying = () => setIsBuffering(false);
+    const handleCanPlay = () => setIsBuffering(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+      handleNext();
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('playing', handlePlaying);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('ended', handleEnded);
+
+    if (isPlaying && !currentTrack.isLocked) {
+      audio.play().catch(e => {
+        console.error("Playback failed", e);
+        setIsPlaying(false);
+      });
+    } else {
+      audio.pause();
+    }
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('playing', handlePlaying);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [isPlaying, currentTrackIndex]);
+
   // Handle music player seek
   const handleSeek = (time: number) => {
-    if (playerRef.current) {
-      playerRef.current.seekTo(time, 'seconds');
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
     }
   };
 
@@ -947,41 +985,9 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <ReactPlayer
-        ref={playerRef}
-        url={currentTrack.url}
-        playing={isPlaying && !currentTrack.isLocked}
-        onProgress={(p) => setCurrentTime(p.playedSeconds)}
-        onDuration={(d) => setSongDuration(d)}
-        onEnded={handleNext}
-        onBuffer={() => setIsBuffering(true)}
-        onBufferEnd={() => setIsBuffering(false)}
-        onError={(e) => {
-          console.error("Player error:", e);
-          setIsPlaying(false);
-        }}
-        width="200px"
-        height="200px"
-        style={{ 
-          position: 'fixed', 
-          top: '-1000px', 
-          left: '-1000px', 
-          opacity: 0,
-          pointerEvents: 'none'
-        }}
-        config={{
-          soundcloud: {
-            options: {
-              auto_play: false,
-              buying: false,
-              sharing: false,
-              download: false,
-              show_artwork: false,
-              show_playcount: false,
-              show_user: false
-            }
-          }
-        }}
+      <audio 
+        ref={audioRef}
+        src={currentTrack.url}
       />
     </div>
   );
