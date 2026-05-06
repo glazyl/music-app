@@ -48,20 +48,20 @@ const AD_DURATION_SEC = 30;
 const SAMPLE_TRACKS: Track[] = [
   {
     id: '1',
-    title: 'Neon Nights',
-    artist: 'SyncWave',
+    title: 'Love Like U',
+    artist: 'Ashtine Olviga',
     duration: '3:45',
-    cover: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=300&h=300&auto=format&fit=crop',
+    cover: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=300&h=300&auto=format&fit=crop',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     isLocked: false,
     bpm: 128
   },
   {
     id: '2',
-    title: 'Midnight Dash',
-    artist: 'Electra',
+    title: 'Manchild',
+    artist: 'Sabrina Carpenter',
     duration: '2:58',
-    cover: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=300&h=300&auto=format&fit=crop',
+    cover: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=300&h=300&auto=format&fit=crop',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
     isLocked: true,
     bpm: 140
