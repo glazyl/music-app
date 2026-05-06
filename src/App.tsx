@@ -316,123 +316,123 @@ export default function App() {
         <main className="flex-1 flex flex-col p-6 pt-16 overflow-hidden relative z-0 overflow-y-auto hidden-scrollbar pb-32">
 
           {activeView === 'home' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col w-full">
               {/* Header */}
-              <header className="flex justify-between items-center mb-8">
+              <header className="flex justify-between items-center mb-10">
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-neon-green rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-neon-green rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(57,255,20,0.3)]">
                       <Activity className="w-5 h-5 text-black" />
                   </div>
                   <span className="text-xl font-black font-display tracking-tight">STRIDE</span>
                 </div>
                 <button 
                   onClick={() => setActiveView('profile')}
-                  className="w-10 h-10 rounded-2xl glass border-white/20 p-0.5 overflow-hidden active:scale-95 transition-transform"
+                  className="w-10 h-10 rounded-2xl bg-white/5 border border-white/20 p-0.5 overflow-hidden active:scale-90 transition-transform"
                 >
                   <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="avatar" className="w-full h-full object-cover" />
                 </button>
               </header>
 
-              <div className="flex flex-col">
-                <h1 className="text-3xl font-heavy mb-1">Stay active, <span className="text-neon-green">Glazyl</span></h1>
-                <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-8">Next session in 2 hours</p>
-                {/* Circular Progress Ring */}
-                <div className="relative w-64 h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 flex-shrink-0 flex items-center justify-center">
-                  <svg className="progress-ring w-full h-full" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="45" stroke="rgba(255,255,255,0.05)" strokeWidth="4" fill="transparent" />
+              <div className="flex flex-col items-center">
+                <div className="w-full text-left mb-10">
+                   <h1 className="text-3xl font-heavy mb-1">Stay active, <span className="text-neon-green">Glazyl</span></h1>
+                   <p className="text-white/40 text-xs font-bold uppercase tracking-wider">Next session in 2 hours</p>
+                </div>
+
+                {/* Circular Progress Ring - Centered */}
+                <div className="relative w-72 h-72 flex-shrink-0 flex items-center justify-center mb-12">
+                  <svg className="progress-ring w-full h-full drop-shadow-[0_0_20px_rgba(0,0,0,0.5)]" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="45" stroke="rgba(255,255,255,0.03)" strokeWidth="3" fill="transparent" />
                     <motion.circle 
                       cx="50" cy="50" r="45" stroke="#39FF14" strokeWidth="4" fill="transparent" strokeDasharray="282.7" 
                       animate={{ strokeDashoffset: dashOffset }}
-                      transition={{ type: "spring", stiffness: 50, damping: 20 }}
+                      transition={{ type: "spring", stiffness: 30, damping: 15 }}
                       strokeLinecap="round" className="drop-shadow-[0_0_12px_rgba(57,255,20,0.6)]" 
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <p className="text-[10px] md:text-sm text-white/40 uppercase tracking-[0.2em] font-black">Next Reward</p>
-                    <p className="text-6xl md:text-8xl font-black neon-glow font-display leading-none">
-                      {Math.max(POINTS_PER_SONG - points, 0).toFixed(0)}<span className="text-xl md:text-2xl ml-1 font-medium font-sans">pts</span>
+                    <p className="text-[10px] text-white/30 uppercase tracking-[0.25em] font-black">Goal Progress</p>
+                    <p className="text-7xl font-black neon-glow font-display leading-none">
+                      {Math.max(POINTS_PER_SONG - points, 0).toFixed(0)}<span className="text-xl ml-1 font-medium font-sans">pts</span>
                     </p>
-                    <p className="text-[10px] md:text-sm text-neon-green mt-2 md:mt-4 font-bold tracking-wide">To Unlock Next Song</p>
+                    <p className="text-[10px] text-neon-green mt-3 font-heavy tracking-widest uppercase">To Unlock Next Song</p>
                   </div>
                 </div>
 
                 {/* List Section */}
-                <div className="flex-1 flex flex-col h-full w-full">
-                  {/* Unlocks and Ads Section */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                      <div className="glass p-6 md:p-8 rounded-[2rem] relative overflow-hidden group border-neon-green/20">
-                        <div className="flex items-center space-x-4 md:space-x-8">
-                          <div className="w-20 h-20 md:w-28 md:h-28 bg-white/5 rounded-2xl overflow-hidden shadow-2xl relative flex-shrink-0">
-                            <img src={tracks.find(t => t.isLocked)?.cover} alt="" className="w-full h-full object-cover grayscale opacity-50 transition-all group-hover:scale-110" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <Lock className="w-6 h-6 md:w-8 md:h-8 text-white/40" />
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <span className="px-2 py-0.5 bg-neon-green text-black text-[8px] md:text-[9px] font-black rounded">LOCKED</span>
-                              <span className="text-[9px] md:text-[10px] text-white/40 font-black uppercase tracking-widest hidden md:block">Next Reward</span>
-                            </div>
-                            <h2 className="text-xl md:text-2xl font-black truncate">{tracks.find(t => t.isLocked)?.title || "ALL UNLOCKED"}</h2>
-                            <p className="text-sm text-white/60 font-medium">Earn { Math.max(POINTS_PER_SONG - points, 0) } more points</p>
+                <div className="w-full space-y-8 pb-10">
+                  {/* Highlight Cards */}
+                  <div className="space-y-4">
+                    {/* Reward Progress Card */}
+                    <div className="bg-[#111111] p-5 rounded-[2rem] border border-white/5 relative overflow-hidden active:scale-[0.98] transition-transform cursor-pointer">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-20 h-20 bg-white/5 rounded-2xl overflow-hidden shadow-2xl relative flex-shrink-0">
+                          <img src={tracks.find(t => t.isLocked)?.cover} alt="" className="w-full h-full object-cover grayscale opacity-30" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Lock className="w-6 h-6 text-white/20" />
                           </div>
                         </div>
-                        <div className="absolute bottom-0 left-0 h-1.5 bg-neon-green/30 w-full">
-                          <motion.div 
-                            animate={{ width: `${progressPercent * 100}%` }}
-                            className="h-full bg-neon-green shadow-[0_0_10px_#39FF14]"
-                          />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className="px-2 py-0.5 bg-neon-green text-black text-[8px] font-black rounded italic">ACTIVE REWARD</span>
+                          </div>
+                          <h2 className="text-lg font-black truncate">{tracks.find(t => t.isLocked)?.title || "ALL UNLOCKED"}</h2>
+                          <div className="flex items-center gap-2 mt-1">
+                             <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <motion.div animate={{ width: `${progressPercent * 100}%` }} className="h-full bg-neon-green shadow-[0_0_10px_#39FF14]" />
+                             </div>
+                             <span className="text-[9px] font-bold text-white/40">{Math.round(progressPercent * 100)}%</span>
+                          </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Advertisement Section */}
-                      <div className="glass p-6 md:p-8 rounded-[2rem] border-white/5 flex flex-col justify-between group hover:border-neon-green/20 transition-all cursor-pointer overflow-hidden relative" onClick={startWatchingAd}>
-                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                          <Play className="w-24 h-24 text-neon-green fill-current" />
+                    {/* Ad Boost Card */}
+                    <div 
+                      onClick={startWatchingAd}
+                      className="bg-neon-green/5 p-5 rounded-[2rem] border border-neon-green/10 flex items-center justify-between active:scale-[0.98] transition-transform cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-2xl bg-neon-green/10 flex items-center justify-center">
+                          <Play className="w-5 h-5 text-neon-green" />
                         </div>
-                        <div className="relative z-10">
-                          <div className="flex items-center space-x-2 mb-4">
-                            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                              <Music className="w-4 h-4 text-neon-green" />
-                            </div>
-                            <span className="text-[10px] font-black tracking-widest uppercase text-white/40">Watch & Earn</span>
-                          </div>
-                          <h3 className="text-2xl font-black">Get 3 Points</h3>
-                          <p className="text-sm text-white/50 mt-1">Watch a 30s ad to speed up unlocks</p>
+                        <div>
+                          <h3 className="text-sm font-black uppercase tracking-tight">Boost Progress</h3>
+                          <p className="text-[11px] text-white/40 font-medium tracking-wide">Watch ad for +3 Points</p>
                         </div>
-                        <button className="relative z-10 self-start mt-6 px-6 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest group-hover:bg-neon-green group-hover:text-black transition-all">
-                          Start Viewing
-                        </button>
                       </div>
+                      <SkipForward className="w-4 h-4 text-neon-green/40" />
+                    </div>
                   </div>
 
-                <div className="flex-1 space-y-3 pb-32">
-                      <p className="text-[10px] font-black uppercase text-white/40 tracking-widest mb-2">Ready Mix</p>
-                      {tracks.filter(t => !t.isLocked).slice(0, 5).map((track, index) => (
+                  {/* Ready Mix Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                       <p className="text-[11px] font-black uppercase text-white/30 tracking-[0.2em]">Ready Mix</p>
+                       <button onClick={() => setActiveView('library')} className="text-[10px] font-bold text-neon-green/60 uppercase">See All</button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {tracks.filter(t => !t.isLocked).slice(0, 3).map((track, index) => (
                         <div 
                           key={track.id}
                           onClick={() => setCurrentTrackIndex(tracks.indexOf(track))}
-                          className={`glass p-4 rounded-2xl flex items-center space-x-4 border-white/5 transition-all hover:bg-white/5 active:scale-[0.98] cursor-pointer ${
-                            track.id === currentTrack.id ? 'border-neon-green/40 bg-neon-green/10' : ''
+                          className={`bg-white/5 p-4 rounded-3xl flex items-center space-x-4 border border-transparent transition-all active:scale-[0.98] cursor-pointer ${
+                            track.id === currentTrack.id ? 'border-neon-green/30 bg-neon-green/5 ml-2' : ''
                           }`}
                         >
-                          <div className="w-4 text-[10px] text-white/40 font-black">{index + 1}</div>
+                          <div className="w-4 text-[10px] text-white/20 font-black">{index + 1}</div>
                           <div className="w-10 h-10 rounded-xl overflow-hidden shadow-xl flex-shrink-0">
                             <img src={track.cover} alt="" className="w-full h-full object-cover" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={`text-[13px] font-black truncate ${track.id === currentTrack.id ? 'text-neon-green' : 'text-white'}`}>{track.title}</p>
-                            <p className="text-[10px] text-white/40 font-medium truncate">{track.artist}</p>
+                            <p className="text-[10px] text-white/40 font-medium truncate italic">{track.artist}</p>
                           </div>
                           <span className="text-[10px] text-white/20 font-mono italic">{track.duration}</span>
                         </div>
                       ))}
-                      <button 
-                         onClick={() => setActiveView('library')}
-                         className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors"
-                      >
-                         View Full Library
-                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -440,44 +440,44 @@ export default function App() {
           )}
 
           {activeView === 'search' && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col h-full">
-               <h2 className="text-3xl font-black mb-8">Discover Tracks</h2>
-               <div className="relative mb-10">
-                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full">
+               <h2 className="text-3xl font-heavy mb-8">Discover</h2>
+               <div className="relative mb-8">
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                   <input 
                     type="text" 
-                    placeholder="Search artist, genre, or mood..." 
+                    placeholder="Artists, genres, moods..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-[2rem] py-6 pl-16 pr-8 text-xl font-bold focus:outline-none focus:border-neon-green/40 transition-all placeholder:text-white/20"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-6 text-sm font-medium focus:outline-none focus:border-neon-green/30 transition-all placeholder:text-white/20"
                   />
                </div>
-               <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 space-y-4">
+               <div className="flex-1 overflow-y-auto hidden-scrollbar space-y-3 pb-32">
+                  <p className="px-2 text-[10px] font-black uppercase text-white/30 tracking-widest mb-4">Top Results</p>
                   {tracks.filter(t => 
                     t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                     t.artist.toLowerCase().includes(searchQuery.toLowerCase())
-                  ).map((track, index) => (
+                  ).map((track) => (
                     <div 
                       key={track.id}
                       onClick={() => !track.isLocked && setCurrentTrackIndex(tracks.indexOf(track))}
-                      className={`glass p-5 rounded-2xl flex items-center space-x-6 border-white/5 transition-all hover:bg-white/5 cursor-pointer relative group ${
-                        track.id === currentTrack.id ? 'border-neon-green/40 bg-neon-green/10' : ''
-                      } ${track.isLocked ? 'opacity-40 grayscale pointer-events-none' : ''}`}
+                      className={`bg-white/5 p-4 rounded-3xl flex items-center space-x-4 border border-transparent transition-all active:scale-[0.98] cursor-pointer relative group ${
+                        track.id === currentTrack.id ? 'border-neon-green/30 bg-neon-green/5' : ''
+                      } ${track.isLocked ? 'opacity-30' : ''}`}
                     >
-                      <div className="w-16 h-16 rounded-xl overflow-hidden shadow-xl flex-shrink-0">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden shadow-xl flex-shrink-0 relative">
                         <img src={track.cover} alt="" className="w-full h-full object-cover" />
-                        {track.isLocked && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Lock className="w-6 h-6 text-white" /></div>}
+                        {track.isLocked && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Lock className="w-4 h-4 text-white/40" /></div>}
                       </div>
-                      <div className="flex-1">
-                        <p className={`text-lg font-black truncate ${track.id === currentTrack.id ? 'text-neon-green' : 'text-white'}`}>{track.title}</p>
-                        <p className="text-sm text-white/40 font-medium">{track.artist}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-[13px] font-black truncate ${track.id === currentTrack.id ? 'text-neon-green' : 'text-white'}`}>{track.title}</p>
+                        <p className="text-[10px] text-white/40 font-medium truncate">{track.artist}</p>
                       </div>
-                      <div className="hidden group-hover:flex items-center space-x-4">
-                         <span className="text-[10px] uppercase font-black tracking-widest text-white/20">Genre: Future</span>
-                         <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center">
-                            <Play className="w-4 h-4 fill-current" />
-                         </div>
-                      </div>
+                      {!track.isLocked && (
+                        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                          <Play className="w-3 h-3 text-white/60 fill-current" />
+                        </div>
+                      )}
                     </div>
                   ))}
                </div>
@@ -512,133 +512,130 @@ export default function App() {
           )}
 
           {activeView === 'run' && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col h-full items-center justify-center text-center">
-               <div className="relative mb-12">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full items-center">
+               <div className="w-full text-left mb-10">
+                  <h2 className="text-3xl font-heavy">Current Run</h2>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Session Active • GPS Live</p>
+               </div>
+
+               <div className="relative mb-12 flex items-center justify-center">
                   <motion.div 
-                    animate={{ scale: isTracking ? [1, 1.05, 1] : 1 }} 
-                    transition={{ repeat: Infinity, duration: 2 }}
-                    className="w-80 h-80 md:w-[450px] md:h-[450px] rounded-full border-8 border-white/5 flex flex-col items-center justify-center relative overflow-hidden"
+                    animate={{ scale: isTracking ? [1, 1.02, 1] : 1 }} 
+                    transition={{ repeat: Infinity, duration: 3 }}
+                    className="w-72 h-72 rounded-full border-4 border-white/5 flex flex-col items-center justify-center relative shadow-[0_0_60px_rgba(0,0,0,0.5)]"
                   >
-                     <div className="atmosphere opacity-30" />
-                     <p className="text-sm md:text-xl text-white/40 uppercase tracking-[0.3em] font-black mb-4">Total Steps</p>
-                     <p className="text-8xl md:text-[180px] font-black neon-glow font-display leading-none leading-none">{totalSteps + (points * STEPS_PER_POINT)}</p>
-                     <p className="text-lg md:text-2xl text-neon-green mt-4 font-bold tracking-widest">{points} Earned Points</p>
+                     <div className="atmosphere opacity-10" />
+                     <p className="text-[10px] text-white/30 uppercase tracking-[0.3em] font-black mb-2">Total Steps</p>
+                     <p className="text-7xl font-black neon-glow font-display leading-none">{totalSteps + (points * STEPS_PER_POINT)}</p>
+                     <p className="text-sm text-neon-green mt-3 font-heavy tracking-widest uppercase">{points} Points</p>
                      
-                     <svg className="absolute inset-0 w-full h-full -rotate-90">
+                     <svg className="absolute inset-0 w-full h-full -rotate-90 scale-[1.02]">
                         <motion.circle 
                           cx="50%" cy="50%" r="48%" 
-                          stroke="#39FF14" strokeWidth="8" fill="transparent"
+                          stroke="#39FF14" strokeWidth="4" fill="transparent"
                           strokeDasharray="1413"
                           animate={{ strokeDashoffset: 1413 * (1 - (totalSteps % STEPS_PER_POINT) / STEPS_PER_POINT) }}
+                          transition={{ type: "spring", stiffness: 20, damping: 10 }}
+                          strokeLinecap="round"
+                          className="drop-shadow-[0_0_8px_rgba(57,255,20,0.4)]"
                         />
                      </svg>
                   </motion.div>
                </div>
 
-               <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
-                  <div className="flex-1 glass p-8 rounded-[2.5rem] border-white/10">
-                     <p className="text-[10px] text-white/40 uppercase font-black mb-1">Step Goal</p>
-                     <p className="text-3xl font-black">{totalSteps % STEPS_PER_POINT} / {STEPS_PER_POINT}</p>
-                     <p className="text-xs text-neon-green mt-2 font-bold uppercase tracking-wider">Next Point</p>
+               <div className="grid grid-cols-2 gap-4 w-full mb-10">
+                  <div className="bg-[#111] p-6 rounded-3xl border border-white/5">
+                     <p className="text-[9px] text-white/30 font-black uppercase mb-1 tracking-wider">Step Goal</p>
+                     <p className="text-xl font-black">{totalSteps % STEPS_PER_POINT}<span className="text-[10px] text-white/20 ml-1">/ {STEPS_PER_POINT}</span></p>
                   </div>
-                  <div className="flex-1 glass p-8 rounded-[2.5rem] border-white/10">
-                     <p className="text-[10px] text-white/40 uppercase font-black mb-1">Goal Points</p>
-                     <p className="text-3xl font-black">{points} / {POINTS_PER_SONG}</p>
-                     <p className="text-xs text-neon-green mt-2 font-bold uppercase tracking-wider">Next Song</p>
+                  <div className="bg-[#111] p-6 rounded-3xl border border-white/5">
+                     <p className="text-[9px] text-white/30 font-black uppercase mb-1 tracking-wider">Point Goal</p>
+                     <p className="text-xl font-black">{points}<span className="text-[10px] text-white/20 ml-1">/ {POINTS_PER_SONG}</span></p>
                   </div>
                </div>
 
                <button 
                  onClick={toggleTracking}
-                 className={`mt-12 px-20 py-8 rounded-[3rem] text-2xl font-black tracking-widest transition-all ${
+                 className={`w-full py-6 rounded-[2rem] text-lg font-black tracking-[0.2em] transition-all uppercase active:scale-95 ${
                    isTracking 
-                   ? 'bg-red-500/10 text-red-500 border-4 border-red-500/20' 
-                   : 'bg-neon-green text-black shadow-[0_0_50px_rgba(57,255,20,0.4)] hover:scale-105 active:scale-95'
+                   ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
+                   : 'bg-neon-green text-black shadow-[0_0_30px_rgba(57,255,20,0.3)]'
                  }`}
                >
-                 {isTracking ? 'PAUSE SESSION' : 'START RUNNING'}
+                 {isTracking ? 'STOP RUN' : 'START RUN'}
                </button>
 
-               {/* Advertisement Boost Section (Bottom Corner) */}
-               <div className="absolute bottom-10 right-10 hidden xl:block">
-                  <motion.div 
-                    whileHover={{ scale: 1.05 }}
+               <div className="mt-8 w-full">
+                  <div 
                     onClick={startWatchingAd}
-                    className="glass p-6 rounded-3xl border-neon-green/20 w-64 text-left cursor-pointer group relative overflow-hidden"
+                    className="bg-white/5 p-4 rounded-2xl border border-white/10 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform"
                   >
-                    <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                       <Play className="w-24 h-24 text-neon-green fill-current" />
-                    </div>
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2 h-2 rounded-full bg-neon-green animate-pulse" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Point Boost</span>
-                      </div>
-                      <h4 className="text-lg font-black leading-tight">Watch Ad for<br /><span className="text-neon-green">+3 Points</span></h4>
-                      <div className="mt-4 flex items-center gap-1 text-[9px] font-black uppercase text-neon-green">
-                         <span>Go Fast</span> <SkipForward className="w-3 h-3" />
-                      </div>
-                    </div>
-                  </motion.div>
+                     <div className="flex items-center gap-3">
+                        <Play className="w-4 h-4 text-neon-green" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Watch ad for +3 Points</span>
+                     </div>
+                     <SkipForward className="w-3 h-3 text-white/20" />
+                  </div>
                </div>
             </motion.div>
           )}
 
           {activeView === 'profile' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col h-full max-w-4xl mx-auto w-full">
-               <div className="flex flex-col items-center mb-12 text-center">
-                  <div className="w-32 h-32 md:w-48 md:h-48 rounded-[2rem] glass p-1 border-white/10 mb-6 group relative">
-                    <div className="w-full h-full rounded-[1.5rem] bg-gradient-to-br from-neon-green/20 to-blue-600/20 flex items-center justify-center overflow-hidden relative">
-                       <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="avatar" className="w-full h-full group-hover:scale-110 transition-transform duration-700" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full items-center">
+               <div className="flex flex-col items-center mb-10 text-center">
+                  <div className="w-32 h-32 rounded-[2.5rem] bg-white/5 p-1 border border-white/10 mb-6 group relative">
+                    <div className="w-full h-full rounded-[2rem] bg-gradient-to-br from-neon-green/10 to-blue-600/10 flex items-center justify-center overflow-hidden relative shadow-2xl">
+                       <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="avatar" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                    </div>
+                    <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-neon-green rounded-2xl flex items-center justify-center shadow-lg border-4 border-deep-space">
+                       <CheckCircle2 className="w-5 h-5 text-black" />
                     </div>
                   </div>
-                  <h2 className="text-4xl font-black mb-2">Glazyl Alicaway</h2>
-                  <p className="text-neon-green font-bold tracking-widest uppercase text-xs">A-Tier Runner • Level 14</p>
+                  <h2 className="text-3xl font-heavy mb-1">Glazyl Alicaway</h2>
+                  <p className="text-neon-green font-bold tracking-widest uppercase text-[10px]">A-Tier Runner • Level 14</p>
                </div>
 
-               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-                  <div className="glass p-6 rounded-3xl border-white/5 text-center">
-                     <p className="text-[10px] text-white/40 uppercase font-black mb-1">Total Steps</p>
-                     <p className="text-xl font-black">{totalSteps + (points * STEPS_PER_POINT) + 124500}</p>
+               <div className="grid grid-cols-2 gap-3 w-full mb-10">
+                  <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
+                     <p className="text-[9px] text-white/30 uppercase font-black mb-1">Total Steps</p>
+                     <p className="text-lg font-black leading-tight">124k</p>
                   </div>
-                  <div className="glass p-6 rounded-3xl border-white/5 text-center">
-                     <p className="text-[10px] text-white/40 uppercase font-black mb-1">Points Earned</p>
-                     <p className="text-xl font-black text-neon-green">{points + 42}</p>
+                  <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
+                     <p className="text-[9px] text-white/30 uppercase font-black mb-1">Points</p>
+                     <p className="text-lg font-black text-neon-green leading-tight">{points + 42}</p>
                   </div>
-                  <div className="glass p-6 rounded-3xl border-white/5 text-center">
-                     <p className="text-[10px] text-white/40 uppercase font-black mb-1">Unlocks</p>
-                     <p className="text-xl font-black">{tracks.filter(t => !t.isLocked).length}</p>
+                  <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
+                     <p className="text-[9px] text-white/30 uppercase font-black mb-1">Unlocks</p>
+                     <p className="text-lg font-black leading-tight">{tracks.filter(t => !t.isLocked).length}</p>
                   </div>
-                  <div className="glass p-6 rounded-3xl border-white/5 text-center">
-                     <p className="text-[10px] text-white/40 uppercase font-black mb-1">Daily Streak</p>
-                     <p className="text-xl font-black">4 Days</p>
+                  <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
+                     <p className="text-[9px] text-white/30 uppercase font-black mb-1">Streak</p>
+                     <p className="text-lg font-black leading-tight">4 Days</p>
                   </div>
                </div>
 
-               <div className="space-y-6">
-                  <h3 className="text-xl font-black px-2">Account Settings</h3>
-                  <div className="glass rounded-[2rem] border-white/5 divide-y divide-white/5 overflow-hidden">
-                     <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer group">
-                        <div className="flex items-center gap-4">
-                           <MapPin className="w-5 h-5 text-white/40 group-hover:text-neon-green" />
-                           <span className="font-bold">Location Preferences</span>
+               <div className="w-full space-y-6 pb-20">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-white/20 px-2">Account</h3>
+                  <div className="bg-[#111] rounded-3xl border border-white/5 divide-y divide-white/5 overflow-hidden">
+                     {[
+                       { icon: MapPin, label: 'Location Preferences' },
+                       { icon: Activity, label: 'Tracking Sensitivity' },
+                       { icon: Heart, label: 'Health Integration' },
+                       { icon: User, label: 'Personal Details' }
+                     ].map((item, i) => (
+                        <div key={i} className="p-5 flex items-center justify-between active:bg-white/5 transition-colors cursor-pointer group">
+                           <div className="flex items-center gap-4">
+                              <item.icon className="w-4 h-4 text-white/40 group-active:text-neon-green" />
+                              <span className="text-sm font-bold text-white/80">{item.label}</span>
+                           </div>
+                           <SkipForward className="w-3 h-3 text-white/10" />
                         </div>
-                        <SkipForward className="w-4 h-4 opacity-20" />
-                     </div>
-                     <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer group">
-                        <div className="flex items-center gap-4">
-                           <Activity className="w-5 h-5 text-white/40 group-hover:text-neon-green" />
-                           <span className="font-bold">Step Tracking Sensitivity</span>
-                        </div>
-                        <SkipForward className="w-4 h-4 opacity-20" />
-                     </div>
-                     <div className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer group text-red-500">
-                        <div className="flex items-center gap-4">
-                           <Unlock className="w-5 h-5 opacity-40 group-hover:opacity-100" />
-                           <span className="font-bold">Sign Out</span>
-                        </div>
-                     </div>
+                     ))}
                   </div>
+                  
+                  <button className="w-full py-5 text-red-500/60 font-black text-xs uppercase tracking-[0.2em] hover:text-red-500 transition-colors">
+                     Sign Out
+                  </button>
                </div>
             </motion.div>
           )}
