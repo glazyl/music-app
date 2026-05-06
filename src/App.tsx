@@ -21,7 +21,9 @@ import {
   CheckCircle2,
   Clock,
   Heart,
-  User
+  User,
+  Camera,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -148,6 +150,24 @@ export default function App() {
   const [points, setPoints] = useState(() => {
     return Number(localStorage.getItem('stride_points') || 5);
   });
+  
+  // Profile state
+  const [profileName, setProfileName] = useState(() => {
+    return localStorage.getItem('stride_profile_name') || 'Glazyl Alicaway';
+  });
+  const [profileAvatarSeed, setProfileAvatarSeed] = useState(() => {
+    return localStorage.getItem('stride_profile_avatar_seed') || 'Glazyl';
+  });
+  const [profilePhoto, setProfilePhoto] = useState(() => {
+    return localStorage.getItem('stride_profile_photo') || null;
+  });
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState(profileName);
+  const [editAvatarSeed, setEditAvatarSeed] = useState(profileAvatarSeed);
+  const [editPhoto, setEditPhoto] = useState(profilePhoto);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [isUnlockedMode, setIsUnlockedMode] = useState(false);
   const [lastCoords, setLastCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isTracking, setIsTracking] = useState(false);
@@ -166,7 +186,14 @@ export default function App() {
     localStorage.setItem('stride_tracks_v2', JSON.stringify(tracks));
     localStorage.setItem('stride_points', points.toString());
     localStorage.setItem('stride_steps', totalSteps.toString());
-  }, [tracks, points, totalSteps]);
+    localStorage.setItem('stride_profile_name', profileName);
+    localStorage.setItem('stride_profile_avatar_seed', profileAvatarSeed);
+    if (profilePhoto) {
+      localStorage.setItem('stride_profile_photo', profilePhoto);
+    } else {
+      localStorage.removeItem('stride_profile_photo');
+    }
+  }, [tracks, points, totalSteps, profileName, profileAvatarSeed, profilePhoto]);
 
   // Reset progress when track changes
   useEffect(() => {
@@ -319,6 +346,23 @@ export default function App() {
     setCurrentTrackIndex(prev => (prev - 1 + tracks.length) % tracks.length);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const randomizeSeed = () => {
+    const randomSeed = Math.random().toString(36).substring(7);
+    setEditAvatarSeed(randomSeed);
+    setEditPhoto(null); // Clear custom photo if user chooses to randomize
+  };
+
   const progressPercent = Math.min(points / POINTS_PER_SONG, 1);
   const dashOffset = 282.7 * (1 - progressPercent);
 
@@ -409,13 +453,17 @@ export default function App() {
                   onClick={() => setActiveView('profile')}
                   className="w-10 h-10 rounded-2xl bg-white/5 border border-white/20 p-0.5 overflow-hidden active:scale-90 transition-transform"
                 >
-                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Glazyl" alt="avatar" className="w-full h-full object-cover" />
+                  <img 
+                    src={profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileAvatarSeed}`} 
+                    alt="avatar" 
+                    className="w-full h-full object-cover" 
+                  />
                 </button>
               </header>
 
               <div className="flex flex-col items-center">
                 <div className="w-full text-left mb-10">
-                   <h1 className="text-3xl font-heavy mb-1">Stay active, <span className="text-neon-green">Glazyl</span></h1>
+                   <h1 className="text-3xl font-heavy mb-1">Stay active, <span className="text-neon-green">{profileName.split(' ')[0]}</span></h1>
                    <p className="text-white/40 text-xs font-bold uppercase tracking-wider">Next session in 2 hours</p>
                 </div>
 
@@ -668,61 +716,194 @@ export default function App() {
 
           {activeView === 'profile' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full items-center">
-               <div className="flex flex-col items-center mb-10 text-center">
-                  <div className="w-32 h-32 rounded-[2.5rem] bg-white/5 p-1 border border-white/10 mb-6 group relative">
-                    <div className="w-full h-full rounded-[2rem] bg-gradient-to-br from-neon-green/10 to-blue-600/10 flex items-center justify-center overflow-hidden relative shadow-2xl">
-                       <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Glazyl" alt="avatar" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                    </div>
-                    <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-neon-green rounded-2xl flex items-center justify-center shadow-lg border-4 border-deep-space">
-                       <CheckCircle2 className="w-5 h-5 text-black" />
-                    </div>
-                  </div>
-                  <h2 className="text-3xl font-heavy mb-1">Glazyl Alicaway</h2>
-                  <p className="text-neon-green font-bold tracking-widest uppercase text-[10px]">Beginner Runner • Level 1</p>
-               </div>
+               <AnimatePresence mode="wait">
+                 {isEditingProfile ? (
+                   <motion.div 
+                    key="edit-profile"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="w-full space-y-8 py-4"
+                   >
+                     <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-heavy">Edit Profile</h2>
+                        <button 
+                          onClick={() => {
+                            setIsEditingProfile(false);
+                            setEditName(profileName);
+                            setEditAvatarSeed(profileAvatarSeed);
+                          }}
+                          className="text-xs font-black uppercase text-white/40 tracking-widest"
+                        >
+                          Cancel
+                        </button>
+                     </div>
 
-               <div className="grid grid-cols-2 gap-3 w-full mb-10">
-                  <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
-                     <p className="text-[9px] text-white/30 uppercase font-black mb-1">Total Steps</p>
-                     <p className="text-lg font-black leading-tight">{totalSteps.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
-                     <p className="text-[9px] text-white/30 uppercase font-black mb-1">Points</p>
-                     <p className="text-lg font-black text-neon-green leading-tight">{points}</p>
-                  </div>
-                  <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
-                     <p className="text-[9px] text-white/30 uppercase font-black mb-1">Unlocks</p>
-                     <p className="text-lg font-black leading-tight">{tracks.filter(t => !t.isLocked).length}</p>
-                  </div>
-                  <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
-                     <p className="text-[9px] text-white/30 uppercase font-black mb-1">Streak</p>
-                     <p className="text-lg font-black leading-tight">0 Days</p>
-                  </div>
-               </div>
-
-               <div className="w-full space-y-6 pb-20">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-white/20 px-2">Account</h3>
-                  <div className="bg-[#111] rounded-3xl border border-white/5 divide-y divide-white/5 overflow-hidden">
-                     {[
-                       { icon: MapPin, label: 'Location Preferences' },
-                       { icon: Activity, label: 'Tracking Sensitivity' },
-                       { icon: Heart, label: 'Health Integration' },
-                       { icon: User, label: 'Personal Details' }
-                     ].map((item, i) => (
-                        <div key={i} className="p-5 flex items-center justify-between active:bg-white/5 transition-colors cursor-pointer group">
-                           <div className="flex items-center gap-4">
-                              <item.icon className="w-4 h-4 text-white/40 group-active:text-neon-green" />
-                              <span className="text-sm font-bold text-white/80">{item.label}</span>
-                           </div>
-                           <SkipForward className="w-3 h-3 text-white/10" />
+                     <div className="flex flex-col items-center space-y-6">
+                        <div className="relative group">
+                          <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            onChange={handleFileChange} 
+                            className="hidden" 
+                            accept="image/*"
+                          />
+                          <div className="w-28 h-28 rounded-[2.2rem] bg-white/5 p-1 border border-white/10 overflow-hidden relative">
+                             <img 
+                               src={editPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${editAvatarSeed}`} 
+                               alt="Preview" 
+                               className="w-full h-full object-cover" 
+                             />
+                             <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm"
+                             >
+                                <Camera className="w-6 h-6 text-white" />
+                             </button>
+                          </div>
+                          <div className="absolute -bottom-2 -right-2 flex gap-1">
+                             <button 
+                                onClick={randomizeSeed}
+                                className="w-8 h-8 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center backdrop-blur-md active:scale-90 transition-transform shadow-lg"
+                                title="Randomize Avatar"
+                             >
+                                <RefreshCw className="w-4 h-4 text-white/60" />
+                             </button>
+                             {editPhoto && (
+                                <button 
+                                  onClick={() => setEditPhoto(null)}
+                                  className="w-8 h-8 bg-red-500/20 border border-red-500/20 rounded-xl flex items-center justify-center backdrop-blur-md active:scale-90 transition-transform shadow-lg"
+                                  title="Remove Photo"
+                                >
+                                  <User className="w-4 h-4 text-red-500" />
+                                </button>
+                             )}
+                          </div>
                         </div>
-                     ))}
-                  </div>
-                  
-                  <button className="w-full py-5 text-red-500/60 font-black text-xs uppercase tracking-[0.2em] hover:text-red-500 transition-colors">
-                     Sign Out
-                  </button>
-               </div>
+
+                        <div className="mt-4 flex flex-col items-center w-full">
+                           <p className="text-[10px] font-black uppercase text-white/30 tracking-widest mb-2">Avatar Seed (Optional)</p>
+                           <div className="flex w-full gap-2">
+                              <input 
+                                  type="text"
+                                  value={editAvatarSeed}
+                                  onChange={(e) => {
+                                    setEditAvatarSeed(e.target.value);
+                                    setEditPhoto(null);
+                                  }}
+                                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-neon-green/30"
+                                  placeholder="Change seed..."
+                              />
+                           </div>
+                           <p className="text-[9px] text-white/20 mt-2 italic">Uploading a photo overrides the avatar illustration</p>
+                        </div>
+
+                        <div className="w-full space-y-2">
+                           <p className="text-[10px] font-black uppercase text-white/30 tracking-widest ml-2">Display Name</p>
+                           <input 
+                              type="text"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-neon-green/30 transition-all"
+                              placeholder="Enter your name..."
+                           />
+                        </div>
+
+                        <button 
+                          onClick={() => {
+                            setProfileName(editName);
+                            setProfileAvatarSeed(editAvatarSeed);
+                            setProfilePhoto(editPhoto);
+                            setIsEditingProfile(false);
+                          }}
+                          className="w-full py-5 bg-neon-green text-black rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(57,255,20,0.2)] active:scale-[0.98] transition-transform"
+                        >
+                          Save Changes
+                        </button>
+                     </div>
+                   </motion.div>
+                 ) : (
+                   <motion.div 
+                    key="view-profile"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center w-full"
+                   >
+                      <div className="flex flex-col items-center mb-10 text-center">
+                          <div className="w-32 h-32 rounded-[2.5rem] bg-white/5 p-1 border border-white/10 mb-6 group relative">
+                            <div className="w-full h-full rounded-[2rem] bg-gradient-to-br from-neon-green/10 to-blue-600/10 flex items-center justify-center overflow-hidden relative shadow-2xl">
+                              <img 
+                                src={profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profileAvatarSeed}`} 
+                                alt="avatar" 
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                              />
+                            </div>
+                            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-neon-green rounded-2xl flex items-center justify-center shadow-lg border-4 border-deep-space">
+                              <CheckCircle2 className="w-5 h-5 text-black" />
+                            </div>
+                          </div>
+                          <h2 className="text-3xl font-heavy mb-1">{profileName}</h2>
+                          <p className="text-neon-green font-bold tracking-widest uppercase text-[10px]">Beginner Runner • Level 1</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 w-full mb-10">
+                          <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
+                            <p className="text-[9px] text-white/30 uppercase font-black mb-1">Total Steps</p>
+                            <p className="text-lg font-black leading-tight">{totalSteps.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
+                            <p className="text-[9px] text-white/30 uppercase font-black mb-1">Points</p>
+                            <p className="text-lg font-black text-neon-green leading-tight">{points}</p>
+                          </div>
+                          <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
+                            <p className="text-[9px] text-white/30 uppercase font-black mb-1">Unlocks</p>
+                            <p className="text-lg font-black leading-tight">{tracks.filter(t => !t.isLocked).length}</p>
+                          </div>
+                          <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
+                            <p className="text-[9px] text-white/30 uppercase font-black mb-1">Streak</p>
+                            <p className="text-lg font-black leading-tight">0 Days</p>
+                          </div>
+                      </div>
+
+                      <div className="w-full space-y-6 pb-20">
+                          <div className="flex justify-between items-center px-2">
+                             <h3 className="text-xs font-black uppercase tracking-widest text-white/20">Account</h3>
+                             <button 
+                               onClick={() => {
+                                 setEditName(profileName);
+                                 setEditAvatarSeed(profileAvatarSeed);
+                                 setIsEditingProfile(true);
+                               }}
+                               className="text-[10px] font-black uppercase text-neon-green/60"
+                             >
+                               Edit
+                             </button>
+                          </div>
+                          <div className="bg-[#111] rounded-3xl border border-white/5 divide-y divide-white/5 overflow-hidden">
+                            {[
+                              { icon: MapPin, label: 'Location Preferences' },
+                              { icon: Activity, label: 'Tracking Sensitivity' },
+                              { icon: Heart, label: 'Health Integration' },
+                              { icon: User, label: 'Personal Details' }
+                            ].map((item, i) => (
+                                <div key={i} className="p-5 flex items-center justify-between active:bg-white/5 transition-colors cursor-pointer group">
+                                  <div className="flex items-center gap-4">
+                                      <item.icon className="w-4 h-4 text-white/40 group-active:text-neon-green" />
+                                      <span className="text-sm font-bold text-white/80">{item.label}</span>
+                                  </div>
+                                  <SkipForward className="w-3 h-3 text-white/10" />
+                                </div>
+                            ))}
+                          </div>
+                          
+                          <button className="w-full py-5 text-red-500/60 font-black text-xs uppercase tracking-[0.2em] hover:text-red-500 transition-colors">
+                            Sign Out
+                          </button>
+                      </div>
+                   </motion.div>
+                 )}
+               </AnimatePresence>
             </motion.div>
           )}
 
