@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import profilePic from './assets/images/regenerated_image_1778062623024.jpg';
 import { 
   Play, 
   Pause, 
@@ -410,7 +409,7 @@ export default function App() {
                   onClick={() => setActiveView('profile')}
                   className="w-10 h-10 rounded-2xl bg-white/5 border border-white/20 p-0.5 overflow-hidden active:scale-90 transition-transform"
                 >
-                  <img src={profilePic} alt="avatar" className="w-full h-full object-cover" />
+                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Glazyl" alt="avatar" className="w-full h-full object-cover" />
                 </button>
               </header>
 
@@ -672,7 +671,7 @@ export default function App() {
                <div className="flex flex-col items-center mb-10 text-center">
                   <div className="w-32 h-32 rounded-[2.5rem] bg-white/5 p-1 border border-white/10 mb-6 group relative">
                     <div className="w-full h-full rounded-[2rem] bg-gradient-to-br from-neon-green/10 to-blue-600/10 flex items-center justify-center overflow-hidden relative shadow-2xl">
-                       <img src={profilePic} alt="avatar" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                       <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Glazyl" alt="avatar" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     </div>
                     <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-neon-green rounded-2xl flex items-center justify-center shadow-lg border-4 border-deep-space">
                        <CheckCircle2 className="w-5 h-5 text-black" />
