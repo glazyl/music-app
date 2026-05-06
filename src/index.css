@@ -20,6 +20,16 @@
   }
 }
 
+@layer utilities {
+  .hidden-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hidden-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
 .atmosphere {
   position: absolute;
   inset: 0;

@@ -252,46 +252,90 @@ export default function App() {
   const dashOffset = 282.7 * (1 - progressPercent);
 
   return (
-    <div className="relative flex flex-col items-center justify-center h-screen overflow-hidden text-white font-sans bg-[#020202] selection:bg-neon-green selection:text-black">
-      <div className="atmosphere fixed inset-0 z-0" />
+    <div className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden text-white font-sans bg-[#020202] py-8 selection:bg-neon-green selection:text-black">
+      {/* --- Ambient Background --- */}
+      <div className="atmosphere fixed inset-0 z-0 opacity-40" />
 
-      {/* --- Main Phone-Sized Container --- */}
-      <div className="relative w-full max-w-[450px] h-full flex flex-col bg-deep-space border-x border-white/5 overflow-hidden z-10 md:shadow-[0_0_100px_rgba(0,0,0,0.8)]">
+      {/* --- iPhone Device Frame --- */}
+      <div className="relative w-[390px] h-[844px] shrink-0 bg-deep-space rounded-[3.5rem] border-[8px] border-[#1a1a1a] shadow-[0_0_0_2px_#333,0_50px_100px_-20px_rgba(0,0,0,0.8)] z-10 flex flex-col overflow-hidden">
         
+        {/* --- Dynamic Island --- */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full pt-4 flex justify-center z-[100] pointer-events-none">
+          <motion.div 
+            layout
+            initial={{ width: 120, height: 35 }}
+            animate={{ 
+              width: (isPlaying || isTracking) ? 200 : 120,
+              height: (isPlaying || isTracking) ? 35 : 35
+            }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="bg-black rounded-[2rem] flex items-center justify-between px-4 overflow-hidden relative shadow-2xl"
+          >
+            {/* Left side info (Active Activity) */}
+            <AnimatePresence mode="wait">
+              {isTracking ? (
+                <motion.div key="tracking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                  <Activity className="w-3 h-3 text-neon-green" />
+                  <span className="text-[10px] font-black text-neon-green">{totalSteps + (points * STEPS_PER_POINT)}</span>
+                </motion.div>
+              ) : (
+                <motion.div key="idle-l" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-4" />
+              )}
+            </AnimatePresence>
+
+            {/* Middle (Dynamic Island Shape) */}
+            <div className="w-16 h-8 bg-black rounded-full" />
+
+            {/* Right side info (Now Playing) */}
+            <AnimatePresence mode="wait">
+              {isPlaying ? (
+                <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-1.5">
+                  <div className="flex gap-0.5 items-end h-2.5">
+                    {[0, 1, 2].map(i => (
+                      <motion.div 
+                        key={i}
+                        animate={{ height: [4, 10, 6, 8, 4] }}
+                        transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
+                        className="w-0.5 bg-neon-green rounded-full"
+                      />
+                    ))}
+                  </div>
+                  <Music className="w-3 h-3 text-neon-green opacity-50" />
+                </motion.div>
+              ) : (
+                <motion.div key="idle-r" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-4" />
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+
+        {/* --- Home Indicator --- */}
+        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/20 rounded-full z-[100]" />
+
         {/* --- Main Content Area --- */}
-        <main className="flex-1 flex flex-col p-6 overflow-hidden relative z-0 overflow-y-auto custom-scrollbar pb-32">
+        <main className="flex-1 flex flex-col p-6 pt-16 overflow-hidden relative z-0 overflow-y-auto hidden-scrollbar pb-32">
 
           {activeView === 'home' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col">
-              {/* Mobile Header */}
-              <header className="flex justify-between items-center mb-8 md:mb-12">
-                <div className="md:hidden flex items-center space-x-2">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col">
+              {/* Header */}
+              <header className="flex justify-between items-center mb-8">
+                <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-neon-green rounded-lg flex items-center justify-center">
                       <Activity className="w-5 h-5 text-black" />
                   </div>
-                  <span className="text-xl font-black font-display tracking-tighter">STRIDE</span>
+                  <span className="text-xl font-black font-display tracking-tight">STRIDE</span>
                 </div>
-                <div className="hidden md:block">
-                  <h1 className="text-4xl font-light mb-1">Good morning, <span className="font-black text-white">Glazyl</span></h1>
-                  <p className="text-white/40 text-sm">Ready to blast through 1km today?</p>
-                </div>
-                <div className="flex items-center space-x-4 md:space-x-6">
-                  <div className="hidden md:block text-right">
-                    <p className="text-[10px] text-white/40 uppercase font-black tracking-tighter">Current Pace</p>
-                    <p className="font-mono text-xl text-neon-green">4'58" /km</p>
-                  </div>
-                  <div 
-                    onClick={() => setActiveView('profile')}
-                    className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl glass border-white/20 p-0.5 md:p-1 cursor-pointer hover:border-neon-green/40 transition-colors"
-                  >
-                    <div className="w-full h-full rounded-lg md:rounded-xl bg-gradient-to-br from-neon-green/10 to-blue-500/10 flex items-center justify-center overflow-hidden">
-                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="avatar" className="w-full h-full" />
-                    </div>
-                  </div>
-                </div>
+                <button 
+                  onClick={() => setActiveView('profile')}
+                  className="w-10 h-10 rounded-2xl glass border-white/20 p-0.5 overflow-hidden active:scale-95 transition-transform"
+                >
+                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="avatar" className="w-full h-full object-cover" />
+                </button>
               </header>
 
-              <div className="flex flex-col xl:flex-row space-y-10 xl:space-y-0 xl:space-x-12 items-center xl:items-start">
+              <div className="flex flex-col">
+                <h1 className="text-3xl font-heavy mb-1">Stay active, <span className="text-neon-green">Glazyl</span></h1>
+                <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-8">Next session in 2 hours</p>
                 {/* Circular Progress Ring */}
                 <div className="relative w-64 h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 flex-shrink-0 flex items-center justify-center">
                   <svg className="progress-ring w-full h-full" viewBox="0 0 100 100">
@@ -362,25 +406,25 @@ export default function App() {
                       </div>
                   </div>
 
-                  <div className="flex-1 space-y-3 pb-32 md:pb-0">
+                <div className="flex-1 space-y-3 pb-32">
                       <p className="text-[10px] font-black uppercase text-white/40 tracking-widest mb-2">Ready Mix</p>
                       {tracks.filter(t => !t.isLocked).slice(0, 5).map((track, index) => (
                         <div 
                           key={track.id}
                           onClick={() => setCurrentTrackIndex(tracks.indexOf(track))}
-                          className={`glass p-4 md:p-5 rounded-2xl flex items-center space-x-4 md:space-x-6 border-white/5 transition-all hover:bg-white/5 cursor-pointer ${
+                          className={`glass p-4 rounded-2xl flex items-center space-x-4 border-white/5 transition-all hover:bg-white/5 active:scale-[0.98] cursor-pointer ${
                             track.id === currentTrack.id ? 'border-neon-green/40 bg-neon-green/10' : ''
                           }`}
                         >
-                          <div className="w-5 text-[10px] text-white/40 font-black">{index + 1}</div>
-                          <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden shadow-xl flex-shrink-0">
+                          <div className="w-4 text-[10px] text-white/40 font-black">{index + 1}</div>
+                          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-xl flex-shrink-0">
                             <img src={track.cover} alt="" className="w-full h-full object-cover" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs md:text-sm font-black truncate ${track.id === currentTrack.id ? 'text-neon-green' : 'text-white'}`}>{track.title}</p>
-                            <p className="text-[10px] md:text-xs text-white/40 font-medium">{track.artist}</p>
+                            <p className={`text-[13px] font-black truncate ${track.id === currentTrack.id ? 'text-neon-green' : 'text-white'}`}>{track.title}</p>
+                            <p className="text-[10px] text-white/40 font-medium truncate">{track.artist}</p>
                           </div>
-                          <span className="text-[10px] text-white/20 font-mono">{track.duration}</span>
+                          <span className="text-[10px] text-white/20 font-mono italic">{track.duration}</span>
                         </div>
                       ))}
                       <button 
@@ -441,31 +485,26 @@ export default function App() {
           )}
 
           {activeView === 'library' && (
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col h-full">
-               <div className="flex justify-between items-center mb-10">
-                  <h2 className="text-3xl font-black">Your Collection</h2>
-                  <div className="px-4 py-2 bg-neon-green/10 border border-neon-green/20 rounded-xl">
-                     <span className="text-[10px] font-black uppercase text-neon-green">{tracks.filter(t => !t.isLocked).length} Tracks Unlocked</span>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full">
+               <div className="flex justify-between items-center mb-8">
+                  <h2 className="text-3xl font-heavy">Library</h2>
+                  <div className="px-3 py-1 bg-neon-green/10 border border-neon-green/20 rounded-lg">
+                     <span className="text-[9px] font-black uppercase text-neon-green">{tracks.filter(t => !t.isLocked).length} Unlocked</span>
                   </div>
                </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto custom-scrollbar pr-4 pb-20">
+               <div className="grid grid-cols-2 gap-4 overflow-y-auto hidden-scrollbar pb-32">
                   {tracks.filter(t => !t.isLocked).map(track => (
                     <motion.div 
                       key={track.id}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => setCurrentTrackIndex(tracks.indexOf(track))}
-                      className={`glass p-4 rounded-3xl border border-white/5 cursor-pointer relative overflow-hidden group ${track.id === currentTrack.id ? 'border-neon-green/40' : ''}`}
+                      className={`glass p-3 rounded-2xl border border-white/5 cursor-pointer relative overflow-hidden group ${track.id === currentTrack.id ? 'border-neon-green/40 bg-neon-green/5' : ''}`}
                     >
-                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                       <img src={track.cover} className="w-full aspect-square object-cover rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-500" alt="" />
-                       <div className="relative z-20">
-                          <p className="font-black text-lg truncate mb-1">{track.title}</p>
-                          <p className="text-xs text-white/40 italic">{track.artist}</p>
+                       <img src={track.cover} className="w-full aspect-square object-cover rounded-xl mb-3 shadow-lg" alt="" />
+                       <div>
+                          <p className="font-bold text-[13px] truncate leading-tight">{track.title}</p>
+                          <p className="text-[10px] text-white/40 italic truncate">{track.artist}</p>
                        </div>
-                       <button className="absolute right-6 bottom-6 z-20 w-12 h-12 bg-neon-green rounded-full flex items-center justify-center text-black opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all">
-                          <Play className="w-5 h-5 fill-current" />
-                       </button>
                     </motion.div>
                   ))}
                </div>
@@ -614,65 +653,69 @@ export default function App() {
               </button>
           </div>
         </main>
-        {/* --- Unified Mobile Nav Bar --- */}
-        <nav className="h-20 glass rounded-t-3xl flex items-center justify-around px-6 border-white/10 shrink-0 z-30">
-           <div 
+        {/* --- Unified Mobile Nav Bar (iOS Style) --- */}
+        <nav className="absolute bottom-0 left-0 right-0 h-20 bg-black/40 backdrop-blur-3xl flex items-center justify-around px-6 border-t border-white/5 pb-5 shrink-0 z-[60]">
+           <button 
             onClick={() => setActiveView('home')}
-            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${activeView === 'home' ? 'text-neon-green' : 'text-white/30'}`}
+            className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'home' ? 'text-neon-green' : 'text-white/30'}`}
           >
-              <HomeIcon className="w-5 h-5" />
-              <span className="text-[8px] font-black uppercase tracking-widest">Home</span>
-           </div>
-           <div 
+              <HomeIcon className="w-6 h-6" />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Home</span>
+           </button>
+           <button 
             onClick={() => setActiveView('search')}
-            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${activeView === 'search' ? 'text-neon-green' : 'text-white/30'}`}
+            className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'search' ? 'text-neon-green' : 'text-white/30'}`}
           >
-              <Search className="w-5 h-5" />
-              <span className="text-[8px] font-black uppercase tracking-widest">Search</span>
-           </div>
-           <div 
+              <Search className="w-6 h-6" />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Search</span>
+           </button>
+           <button 
             onClick={() => setActiveView('library')}
-            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${activeView === 'library' ? 'text-neon-green' : 'text-white/30'}`}
+            className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'library' ? 'text-neon-green' : 'text-white/30'}`}
           >
-              <Library className="w-5 h-5" />
-              <span className="text-[8px] font-black uppercase tracking-widest">Library</span>
-           </div>
-           <div 
+              <Library className="w-6 h-6" />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Library</span>
+           </button>
+           <button 
             onClick={() => setActiveView('run')}
-            className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${activeView === 'run' ? 'text-neon-green' : 'text-white/30'}`}
+            className={`flex flex-col items-center gap-1 transition-all active:scale-90 cursor-pointer ${activeView === 'run' ? 'text-neon-green' : 'text-white/30'}`}
           >
-              <Activity className="w-5 h-5" />
-              <span className="text-[8px] font-black uppercase tracking-widest">Run</span>
-           </div>
+              <Activity className="w-6 h-6" />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Run</span>
+           </button>
         </nav>
 
-        {/* --- Floating Mini Player (Always inside phone container) --- */}
+        {/* --- Floating Mini Player (iOS Style) --- */}
         <AnimatePresence>
           {!isWatchingAd && (
             <motion.div 
-              initial={{ y: 100 }}
-              animate={{ y: 0 }}
-              className="absolute bottom-24 left-0 right-0 px-4 z-40"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="absolute bottom-[90px] left-0 right-0 px-4 z-50 px-3"
             >
-              <div className="h-16 glass rounded-2xl flex items-center justify-between px-4 border-white/10 shadow-2xl backdrop-blur-3xl">
-                <div className="flex items-center space-x-3 w-3/5">
-                  <div className="w-10 h-10 bg-neon-green rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                    <img src={currentTrack.cover} alt="" className={`w-full h-full object-cover ${isPlaying ? 'animate-[pulse_4s_infinite]' : ''}`} />
+              <div className="h-16 bg-[#1a1a1a]/80 backdrop-blur-2xl rounded-2xl flex items-center justify-between px-3 border border-white/10 shadow-2xl">
+                <div 
+                  onClick={() => setActiveView('home')}
+                  className="flex items-center space-x-3 w-3/5 cursor-pointer"
+                >
+                  <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg">
+                    <img src={currentTrack.cover} alt="" className={`w-full h-full object-cover ${isPlaying ? 'scale-110' : 'scale-100'} transition-transform duration-500`} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black text-white truncate">{currentTrack.title}</p>
-                    <p className="text-[8px] text-white/40 font-medium truncate italic">{currentTrack.artist}</p>
+                    <p className="text-[11px] font-heavy text-white truncate">{currentTrack.title}</p>
+                    <p className="text-[9px] text-neon-green font-bold truncate opacity-80 uppercase tracking-tight">{currentTrack.artist}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
                   <button 
                     onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)} 
-                    className="w-10 h-10 rounded-full glass border-white/20 flex items-center justify-center"
+                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform"
                   >
-                    {isPlaying && !currentTrack.isLocked ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current pl-0.5" />}
+                    {isPlaying && !currentTrack.isLocked ? <Pause className="w-4 h-4 fill-current text-white" /> : <Play className="w-4 h-4 fill-current text-white pl-0.5" />}
                   </button>
-                  <button onClick={handleNext} className="w-10 h-10 rounded-full glass border-white/20 flex items-center justify-center">
-                    <SkipForward className="w-4 h-4" />
+                  <button onClick={handleNext} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform">
+                    <SkipForward className="w-4 h-4 text-white" />
                   </button>
                 </div>
               </div>
@@ -683,14 +726,14 @@ export default function App() {
 
 
 
-      {/* Ad Overlay Sim */}
+      {/* Ad Overlay Sim (Contained in Frame) */}
       <AnimatePresence>
         {isWatchingAd && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black z-[200] flex flex-col items-center justify-center p-6 text-center"
+            className="absolute inset-0 bg-black z-[200] flex flex-col items-center justify-center p-6 text-center"
           >
             <div className="atmosphere opacity-20" />
             <div className="w-20 h-20 bg-neon-green/20 rounded-3xl flex items-center justify-center mb-8">
