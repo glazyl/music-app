@@ -58,7 +58,7 @@ const SAMPLE_TRACKS: Track[] = [
   },
   {
     id: '2',
-    title: 'Espresso',
+    title: 'Manchild',
     artist: 'Sabrina Carpenter',
     duration: '3:33',
     cover: 'https://images.genius.com/5b099a4fe7bc649900fd54fd4dd747f9.1000x1000x1.png',
@@ -68,7 +68,7 @@ const SAMPLE_TRACKS: Track[] = [
   },
   {
     id: '3',
-    title: 'Nice to meet you',
+    title: 'Stateside + Zara Larsson',
     artist: 'PinkPantheress, Zara Larsson',
     duration: '3:04',
     cover: 'https://images.genius.com/f3eff0988933e71aba2424313b12fe59.1000x1000x1.png',
@@ -78,7 +78,7 @@ const SAMPLE_TRACKS: Track[] = [
   },
   {
     id: '4',
-    title: '360',
+    title: 'party 4 u',
     artist: 'Charli xcx',
     duration: '4:56',
     cover: 'https://images.genius.com/e618acfa672295153b4a390066c58576.1000x1000x1.png',
@@ -88,7 +88,7 @@ const SAMPLE_TRACKS: Track[] = [
   },
   {
     id: '5',
-    title: 'Toxic',
+    title: 'Womanizer',
     artist: 'Britney Spears',
     duration: '3:44',
     cover: 'https://images.genius.com/e8ef9cf7f6ace6101517128b7eec657b.300x300x1.jpg',
