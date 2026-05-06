@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import ReactPlayer from 'react-player';
 import { 
   Play, 
   Pause, 
@@ -52,69 +53,51 @@ const SAMPLE_TRACKS: Track[] = [
     artist: 'Ashtine Olviga',
     duration: '2:57',
     cover: 'https://images.genius.com/09f580e348cb09c3443582e525cca603.640x640x1.jpg',
-    url: 'spotify:track:1JvG9p9pXjO2G5vjZ0HlZq',
+    url: 'https://soundcloud.com/rataj-ayman-255838578/love-like-u-ashtine-olviga?si=3d711b44a25946bbb569746a4ef46906&utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing',
     isLocked: false,
     bpm: 128
   },
   {
     id: '2',
-    title: 'Espresso',
+    title: 'Manchild',
     artist: 'Sabrina Carpenter',
-    duration: '2:52',
+    duration: '3:33',
     cover: 'https://images.genius.com/5b099a4fe7bc649900fd54fd4dd747f9.1000x1000x1.png',
-    url: 'spotify:track:2qskSowvTzX77oYmItTLAi',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
     isLocked: true,
-    bpm: 104
+    bpm: 140
   },
   {
     id: '3',
-    title: 'Nice to meet you',
+    title: 'Stateside + Zara Larsson',
     artist: 'PinkPantheress, Zara Larsson',
-    duration: '2:42',
+    duration: '3:04',
     cover: 'https://images.genius.com/f3eff0988933e71aba2424313b12fe59.1000x1000x1.png',
-    url: 'spotify:track:6pSe7Ym0aXfI0vL0YnI3U7',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
     isLocked: true,
     bpm: 165
   },
   {
     id: '4',
-    title: '360',
+    title: 'party 4 u',
     artist: 'Charli xcx',
-    duration: '2:13',
+    duration: '4:56',
     cover: 'https://images.genius.com/e618acfa672295153b4a390066c58576.1000x1000x1.png',
-    url: 'spotify:track:499reP6S876YI66S6Xo29E',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
     isLocked: true,
     bpm: 155
   },
   {
     id: '5',
-    title: 'Toxic',
+    title: 'Womanizer',
     artist: 'Britney Spears',
-    duration: '3:18',
-    cover: 'https://images.genius.com/e8ef9cf7f6ace6101517128b7eec657b.300x300x1.jpg',
-    url: 'spotify:track:6I9VjXpZp39UvIAp7pS7qy',
+    duration: '3:44',
+    cover: 'https://images.genius.com/e8ef9cf7f7ace6101517128b7eec657b.300x300x1.jpg',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
     isLocked: true,
-    bpm: 143
+    bpm: 172
   }
 ];
-
-// --- Types ---
-interface SpotifyEmbedController {
-  loadUri: (uri: string) => void;
-  play: () => void;
-  pause: () => void;
-  togglePlay: () => void;
-  seek: (milliseconds: number) => void;
-  addListener: (event: string, callback: (eventData: any) => void) => void;
-  removeListener: (event: string, callback: (eventData: any) => void) => void;
-  destroy: () => void;
-}
-
-declare global {
-  interface Window {
-    onSpotifyIframeApiReady: (IFrameAPI: any) => void;
-  }
-}
 
 // --- Utilities ---
 
@@ -163,67 +146,15 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [songDuration, setSongDuration] = useState(0);
   const [isBuffering, setIsBuffering] = useState(false);
-  const [spotifyController, setSpotifyController] = useState<SpotifyEmbedController | null>(null);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
 
-  // Load Spotify Iframe API
+  // Reset progress when track changes
   useEffect(() => {
-    if (!window.document.getElementById('spotify-player-api')) {
-      const script = document.createElement('script');
-      script.id = 'spotify-player-api';
-      script.src = "https://open.spotify.com/embed-error/iframe-api/v1"; // The working endpoint for AI Studio
-      script.async = true;
-      document.body.appendChild(script);
-    }
-
-    window.onSpotifyIframeApiReady = (IFrameAPI: any) => {
-      const element = document.getElementById('spotify-player');
-      const options = {
-        uri: tracks[currentTrackIndex].url,
-        width: '100%',
-        height: '80',
-      };
-      
-      IFrameAPI.createController(element, options, (EmbedController: SpotifyEmbedController) => {
-        setSpotifyController(EmbedController);
-        
-        EmbedController.addListener('playback_update', (e: any) => {
-          const { position, duration } = e.data;
-          setCurrentTime(position / 1000);
-          setSongDuration(duration / 1000);
-        });
-
-        EmbedController.addListener('ready', () => {
-          console.log('Spotify Embed is ready');
-        });
-      });
-    };
-
-    return () => {
-      if (spotifyController) {
-        spotifyController.destroy();
-      }
-    };
-  }, []);
-
-  // Update URI when track changes
-  useEffect(() => {
-    if (spotifyController) {
-      spotifyController.loadUri(currentTrack.url);
-      if (isPlaying) {
-        spotifyController.play();
-      }
-    }
+    setCurrentTime(0);
+    setSongDuration(0);
+    setIsBuffering(false);
+    setIsPlayerReady(false);
   }, [currentTrackIndex]);
-
-  // Sync play/pause
-  useEffect(() => {
-    if (!spotifyController) return;
-    if (isPlaying) {
-      spotifyController.play();
-    } else {
-      spotifyController.pause();
-    }
-  }, [isPlaying, spotifyController]);
 
   const [totalSteps, setTotalSteps] = useState(() => {
     const saved = localStorage.getItem('stride_tracks_v2');
@@ -241,6 +172,8 @@ export default function App() {
   const [isWatchingAd, setIsWatchingAd] = useState(false);
   const [adTimer, setAdTimer] = useState(0);
 
+  const playerRef = useRef<ReactPlayer>(null);
+
   const watcherRef = useRef<number | null>(null);
 
   const currentTrack = tracks[currentTrackIndex];
@@ -254,8 +187,8 @@ export default function App() {
 
   // Handle music player seek
   const handleSeek = (time: number) => {
-    if (spotifyController) {
-      spotifyController.seek(time * 1000);
+    if (playerRef.current) {
+      playerRef.current.seekTo(time, 'seconds');
     }
   };
 
@@ -1014,10 +947,42 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Spotify Embed Container - Kept small and visually consistent */}
-      <div className="fixed bottom-4 right-4 z-[50] opacity-0 hover:opacity-100 transition-opacity pointer-events-auto">
-        <div id="spotify-player" className="w-[300px] rounded-xl overflow-hidden shadow-2xl border border-white/10" />
-      </div>
+      <ReactPlayer
+        ref={playerRef}
+        url={currentTrack.url}
+        playing={isPlaying && !currentTrack.isLocked}
+        onProgress={(p) => setCurrentTime(p.playedSeconds)}
+        onDuration={(d) => setSongDuration(d)}
+        onEnded={handleNext}
+        onBuffer={() => setIsBuffering(true)}
+        onBufferEnd={() => setIsBuffering(false)}
+        onError={(e) => {
+          console.error("Player error:", e);
+          setIsPlaying(false);
+        }}
+        width="200px"
+        height="200px"
+        style={{ 
+          position: 'fixed', 
+          top: '-1000px', 
+          left: '-1000px', 
+          opacity: 0,
+          pointerEvents: 'none'
+        }}
+        config={{
+          soundcloud: {
+            options: {
+              auto_play: false,
+              buying: false,
+              sharing: false,
+              download: false,
+              show_artwork: false,
+              show_playcount: false,
+              show_user: false
+            }
+          }
+        }}
+      />
     </div>
   );
 }
