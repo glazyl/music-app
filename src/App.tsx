@@ -50,7 +50,7 @@ const SAMPLE_TRACKS: Track[] = [
     id: '1',
     title: 'Love Like U',
     artist: 'Ashtine Olviga',
-    duration: '2:57',
+    duration: '1:57',
     cover: 'https://images.genius.com/09f580e348cb09c3443582e525cca603.640x640x1.jpg',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     isLocked: false,
@@ -58,7 +58,7 @@ const SAMPLE_TRACKS: Track[] = [
   },
   {
     id: '2',
-    title: 'Manchild',
+    title: 'Espresso',
     artist: 'Sabrina Carpenter',
     duration: '3:33',
     cover: 'https://images.genius.com/5b099a4fe7bc649900fd54fd4dd747f9.1000x1000x1.png',
@@ -68,7 +68,7 @@ const SAMPLE_TRACKS: Track[] = [
   },
   {
     id: '3',
-    title: 'Stateside + Zara Larsson',
+    title: 'Nice to meet you',
     artist: 'PinkPantheress, Zara Larsson',
     duration: '3:04',
     cover: 'https://images.genius.com/f3eff0988933e71aba2424313b12fe59.1000x1000x1.png',
@@ -78,7 +78,7 @@ const SAMPLE_TRACKS: Track[] = [
   },
   {
     id: '4',
-    title: 'party 4 u',
+    title: '360',
     artist: 'Charli xcx',
     duration: '4:56',
     cover: 'https://images.genius.com/e618acfa672295153b4a390066c58576.1000x1000x1.png',
@@ -88,7 +88,7 @@ const SAMPLE_TRACKS: Track[] = [
   },
   {
     id: '5',
-    title: 'Womanizer',
+    title: 'Toxic',
     artist: 'Britney Spears',
     duration: '3:44',
     cover: 'https://images.genius.com/e8ef9cf7f6ace6101517128b7eec657b.300x300x1.jpg',
@@ -144,6 +144,15 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [songDuration, setSongDuration] = useState(0);
+  const [isBuffering, setIsBuffering] = useState(false);
+
+  // Reset progress when track changes
+  useEffect(() => {
+    setCurrentTime(0);
+    setSongDuration(0);
+    setIsBuffering(false);
+  }, [currentTrackIndex]);
+
   const [totalSteps, setTotalSteps] = useState(() => {
     const saved = localStorage.getItem('stride_tracks_v2');
     return saved ? Number(localStorage.getItem('stride_steps') || 0) : 0;
@@ -159,7 +168,7 @@ export default function App() {
   // Ad state
   const [isWatchingAd, setIsWatchingAd] = useState(false);
   const [adTimer, setAdTimer] = useState(0);
-  
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const watcherRef = useRef<number | null>(null);
 
@@ -172,19 +181,16 @@ export default function App() {
     localStorage.setItem('stride_steps', totalSteps.toString());
   }, [tracks, points, totalSteps]);
 
-  // Handle music player
+  // Handle music player events
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
-    };
-
-    const handleLoadedMetadata = () => {
-      setSongDuration(audio.duration);
-    };
-
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleLoadedMetadata = () => setSongDuration(audio.duration);
+    const handleWaiting = () => setIsBuffering(true);
+    const handlePlaying = () => setIsBuffering(false);
+    const handleCanPlay = () => setIsBuffering(false);
     const handleEnded = () => {
       setIsPlaying(false);
       setCurrentTime(0);
@@ -193,10 +199,16 @@ export default function App() {
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('playing', handlePlaying);
+    audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('ended', handleEnded);
 
     if (isPlaying && !currentTrack.isLocked) {
-      audio.play().catch(e => console.error("Playback failed", e));
+      audio.play().catch(e => {
+        console.error("Playback failed", e);
+        setIsPlaying(false);
+      });
     } else {
       audio.pause();
     }
@@ -204,9 +216,19 @@ export default function App() {
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('playing', handlePlaying);
+      audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [isPlaying, currentTrack]);
+  }, [isPlaying, currentTrackIndex]);
+
+  // Handle music player seek
+  const handleSeek = (time: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+    }
+  };
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return "0:00";
@@ -306,6 +328,16 @@ export default function App() {
 
   const progressPercent = Math.min(points / POINTS_PER_SONG, 1);
   const dashOffset = 282.7 * (1 - progressPercent);
+
+  const parseDurationToSeconds = (durationStr: string) => {
+    const parts = durationStr.split(':');
+    if (parts.length === 2) {
+      return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    }
+    return 0;
+  };
+
+  const displayDuration = songDuration > 0 ? songDuration : parseDurationToSeconds(currentTrack.duration);
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden text-white font-sans bg-[#020202] py-8 selection:bg-neon-green selection:text-black">
@@ -758,19 +790,31 @@ export default function App() {
                 <div 
                   className="flex items-center space-x-3 w-3/5"
                 >
-                  <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg">
-                    <img src={currentTrack.cover} alt="" className={`w-full h-full object-cover ${isPlaying ? 'scale-110' : 'scale-100'} transition-transform duration-500`} />
+                  <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg relative">
+                    <img src={currentTrack.cover} alt="" className={`w-full h-full object-cover ${isPlaying ? 'scale-110' : 'scale-100'} transition-transform duration-500 ${currentTrack.isLocked ? 'grayscale opacity-[0.25]' : ''}`} />
+                    {currentTrack.isLocked && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <Lock className="w-3 h-3 text-white/50" />
+                      </div>
+                    )}
                   </div>
                   <div className="min-w-0">
                     <p className="text-[11px] font-heavy text-white truncate">{currentTrack.title}</p>
                     <p className="text-[9px] text-neon-green font-bold truncate opacity-80 uppercase tracking-tight">{currentTrack.artist}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                  <button 
-                    onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)} 
-                    className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform"
-                  >
+                  <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                    {isBuffering && (
+                      <motion.div 
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                        className="w-4 h-4 border-2 border-neon-green/30 border-t-neon-green rounded-full flex-shrink-0"
+                      />
+                    )}
+                    <button 
+                      onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)} 
+                      className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform"
+                    >
                     {isPlaying && !currentTrack.isLocked ? <Pause className="w-4 h-4 fill-current text-white" /> : <Play className="w-4 h-4 fill-current text-white pl-0.5" />}
                   </button>
                   <button onClick={handleNext} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform">
@@ -819,7 +863,13 @@ export default function App() {
                    animate={{ scale: isPlaying ? 1 : 0.9, opacity: isPlaying ? 1 : 0.8 }}
                    className="w-full aspect-square rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] relative group border border-white/5"
                 >
-                   <img src={currentTrack.cover} alt="" className="w-full h-full object-cover" />
+                   <img src={currentTrack.cover} alt="" className={`w-full h-full object-cover ${currentTrack.isLocked ? 'grayscale opacity-[0.25]' : ''}`} />
+                   {currentTrack.isLocked && (
+                     <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2">
+                       <Lock className="w-10 h-10 text-white/40" />
+                       <p className="text-xs font-black uppercase text-neon-green tracking-[0.2em] shadow-sm">Run to unlock</p>
+                     </div>
+                   )}
                 </motion.div>
 
                 <div className="w-full mt-12 text-left">
@@ -828,23 +878,40 @@ export default function App() {
                 </div>
 
                 <div className="w-full mt-10 space-y-2">
-                   <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden relative">
+                   <div 
+                     className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden relative cursor-pointer"
+                     onClick={(e) => {
+                       const rect = e.currentTarget.getBoundingClientRect();
+                       const x = e.clientX - rect.left;
+                       const percent = x / rect.width;
+                       if (songDuration > 0) handleSeek(percent * songDuration);
+                     }}
+                   >
                       <motion.div 
                         initial={{ width: 0 }}
-                        animate={{ width: `${(currentTime / songDuration) * 100}%` }}
+                        animate={{ width: `${displayDuration > 0 ? (currentTime / displayDuration) * 100 : 0}%` }}
                         transition={{ type: "spring", stiffness: 50, damping: 20, mass: 0.5 }}
                         className="h-full bg-neon-green shadow-[0_0_15px_#39FF14]"
                       />
                    </div>
                    <div className="flex justify-between text-[10px] font-mono text-white/30">
                       <span>{formatTime(currentTime)}</span>
-                      <span>{formatTime(songDuration) || currentTrack.duration}</span>
+                      <span>{displayDuration > 0 ? formatTime(displayDuration) : currentTrack.duration}</span>
                    </div>
                 </div>
 
                 <div className="w-full mt-10 flex items-center justify-between pb-10">
                    <button className="text-white/40 hover:text-white transition-colors"><div className="w-6 h-6 border-2 border-current rounded-lg flex items-center justify-center text-[10px] font-black">HQ</div></button>
-                   <div className="flex items-center gap-10">
+                   <div className="flex items-center gap-10 relative">
+                      {isBuffering && (
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2">
+                           <motion.div 
+                             animate={{ rotate: 360 }}
+                             transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                             className="w-6 h-6 border-2 border-neon-green/30 border-t-neon-green rounded-full"
+                           />
+                        </div>
+                      )}
                       <button onClick={handlePrev} className="text-white active:scale-90 transition-transform"><SkipBack className="w-8 h-8 fill-current" /></button>
                       <button 
                         onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)}
@@ -921,9 +988,6 @@ export default function App() {
       <audio 
         ref={audioRef}
         src={currentTrack.url}
-        onEnded={handleNext}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
       />
     </div>
   );
