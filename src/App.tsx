@@ -50,8 +50,8 @@ const SAMPLE_TRACKS: Track[] = [
     id: '1',
     title: 'Love Like U',
     artist: 'Ashtine Olviga',
-    duration: '3:45',
-    cover: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=300&h=300&auto=format&fit=crop',
+    duration: '2:57',
+    cover: 'https://images.genius.com/09f580e348cb09c3443582e525cca603.640x640x1.jpg',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     isLocked: false,
     bpm: 128
@@ -60,27 +60,27 @@ const SAMPLE_TRACKS: Track[] = [
     id: '2',
     title: 'Manchild',
     artist: 'Sabrina Carpenter',
-    duration: '2:58',
-    cover: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=300&h=300&auto=format&fit=crop',
+    duration: '3:33',
+    cover: 'https://images.genius.com/5b099a4fe7bc649900fd54fd4dd747f9.1000x1000x1.png',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
     isLocked: true,
     bpm: 140
   },
   {
     id: '3',
-    title: 'Pulsar Pulse',
-    artist: 'Velocity',
-    duration: '4:12',
-    cover: 'https://images.unsplash.com/photo-1514525253344-99a429994c4a?q=80&w=300&h=300&auto=format&fit=crop',
+    title: 'Stateside + Zara Larsson',
+    artist: 'PinkPantheress, Zara Larsson',
+    duration: '3:04',
+    cover: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b0/d2/bb/b0d2bb76-41a2-1bb1-586c-107b63e4181d/5026854077819.jpg/72x72bb.jpg',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
     isLocked: true,
     bpm: 165
   },
   {
     id: '4',
-    title: 'Electric Sprint',
-    artist: 'Volt',
-    duration: '3:20',
+    title: 'party 4 u',
+    artist: 'Charli xcx',
+    duration: '4:56',
     cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=300&h=300&auto=format&fit=crop',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
     isLocked: true,
@@ -123,14 +123,35 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   
   const [tracks, setTracks] = useState<Track[]>(() => {
-    const saved = localStorage.getItem('tempo_tracks');
-    return saved ? JSON.parse(saved) : SAMPLE_TRACKS;
+    const saved = localStorage.getItem('stride_tracks_v2');
+    if (!saved) {
+      // Force reset to SAMPLE_TRACKS to ensure user's lock request is honored
+      return SAMPLE_TRACKS;
+    }
+    
+    try {
+      const parsed = JSON.parse(saved) as Track[];
+      return SAMPLE_TRACKS.map(sample => {
+        const savedTrack = parsed.find(t => t.id === sample.id);
+        return savedTrack ? { ...sample, isLocked: savedTrack.isLocked } : sample;
+      });
+    } catch (e) {
+      return SAMPLE_TRACKS;
+    }
   });
   
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [totalSteps, setTotalSteps] = useState(0);
-  const [points, setPoints] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [songDuration, setSongDuration] = useState(0);
+  const [totalSteps, setTotalSteps] = useState(() => {
+    const saved = localStorage.getItem('stride_tracks_v2');
+    return saved ? Number(localStorage.getItem('stride_steps') || 0) : 0;
+  });
+  const [points, setPoints] = useState(() => {
+    const saved = localStorage.getItem('stride_tracks_v2');
+    return saved ? Number(localStorage.getItem('stride_points') || 0) : 0;
+  });
   const [isUnlockedMode, setIsUnlockedMode] = useState(false);
   const [lastCoords, setLastCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isTracking, setIsTracking] = useState(false);
@@ -146,19 +167,53 @@ export default function App() {
 
   // Save progress
   useEffect(() => {
-    localStorage.setItem('tempo_tracks', JSON.stringify(tracks));
-  }, [tracks]);
+    localStorage.setItem('stride_tracks_v2', JSON.stringify(tracks));
+    localStorage.setItem('stride_points', points.toString());
+    localStorage.setItem('stride_steps', totalSteps.toString());
+  }, [tracks, points, totalSteps]);
 
   // Handle music player
   useEffect(() => {
-    if (audioRef.current) {
-      if (isPlaying && !currentTrack.isLocked) {
-        audioRef.current.play().catch(e => console.error("Playback failed", e));
-      } else {
-        audioRef.current.pause();
-      }
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    const handleLoadedMetadata = () => {
+      setSongDuration(audio.duration);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+      handleNext();
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    if (isPlaying && !currentTrack.isLocked) {
+      audio.play().catch(e => console.error("Playback failed", e));
+    } else {
+      audio.pause();
     }
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
   }, [isPlaying, currentTrack]);
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const toggleTracking = () => {
     if (isTracking) {
@@ -740,14 +795,15 @@ export default function App() {
                 >
                   <SkipBack className="w-5 h-5 rotate-90" />
                 </button>
-                <div className="text-center">
-                   <p className="text-[10px] font-black uppercase text-white/30 tracking-widest">Now Playing</p>
-                   <p className="text-xs font-bold text-neon-green uppercase tracking-tighter">BPM: {currentTrack.bpm}</p>
+                <div className="text-center px-4 min-w-0 flex-1">
+                   <p className="text-[10px] font-black uppercase text-white/30 tracking-widest mb-0.5">Now Playing</p>
+                   <p className="text-sm font-heavy text-white truncate px-2">{currentTrack.title}</p>
                 </div>
                 <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform">
                    <div className="flex flex-col gap-0.5">
                       <div className="w-4 h-0.5 bg-white rounded-full"></div>
                       <div className="w-4 h-0.5 bg-white rounded-full"></div>
+                      <div className="w-2 h-0.5 bg-white rounded-full ml-auto"></div>
                    </div>
                 </button>
               </header>
@@ -768,14 +824,15 @@ export default function App() {
                 <div className="w-full mt-10 space-y-2">
                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden relative">
                       <motion.div 
-                        animate={{ width: isPlaying ? '100%' : '30%' }}
-                        transition={{ duration: isPlaying ? 225 : 0.5, ease: "linear" }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(currentTime / songDuration) * 100}%` }}
+                        transition={{ type: "spring", stiffness: 50, damping: 20, mass: 0.5 }}
                         className="h-full bg-neon-green shadow-[0_0_15px_#39FF14]"
                       />
                    </div>
                    <div className="flex justify-between text-[10px] font-mono text-white/30">
-                      <span>0:00</span>
-                      <span>{currentTrack.duration}</span>
+                      <span>{formatTime(currentTime)}</span>
+                      <span>{formatTime(songDuration) || currentTrack.duration}</span>
                    </div>
                 </div>
 
