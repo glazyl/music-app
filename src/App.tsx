@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import profilePic from './assets/images/regenerated_image_1778062623024.jpg';
 import { 
   Play, 
   Pause, 
@@ -124,11 +125,7 @@ export default function App() {
   
   const [tracks, setTracks] = useState<Track[]>(() => {
     const saved = localStorage.getItem('stride_tracks_v2');
-    if (!saved) {
-      // Force reset to SAMPLE_TRACKS to ensure user's lock request is honored
-      return SAMPLE_TRACKS;
-    }
-    
+    if (!saved) return SAMPLE_TRACKS;
     try {
       const parsed = JSON.parse(saved) as Track[];
       return SAMPLE_TRACKS.map(sample => {
@@ -139,27 +136,18 @@ export default function App() {
       return SAMPLE_TRACKS;
     }
   });
-  
+
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [songDuration, setSongDuration] = useState(0);
   const [isBuffering, setIsBuffering] = useState(false);
 
-  // Reset progress when track changes
-  useEffect(() => {
-    setCurrentTime(0);
-    setSongDuration(0);
-    setIsBuffering(false);
-  }, [currentTrackIndex]);
-
   const [totalSteps, setTotalSteps] = useState(() => {
-    const saved = localStorage.getItem('stride_tracks_v2');
-    return saved ? Number(localStorage.getItem('stride_steps') || 0) : 0;
+    return Number(localStorage.getItem('stride_steps') || 523);
   });
   const [points, setPoints] = useState(() => {
-    const saved = localStorage.getItem('stride_tracks_v2');
-    return saved ? Number(localStorage.getItem('stride_points') || 0) : 0;
+    return Number(localStorage.getItem('stride_points') || 5);
   });
   const [isUnlockedMode, setIsUnlockedMode] = useState(false);
   const [lastCoords, setLastCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -180,6 +168,13 @@ export default function App() {
     localStorage.setItem('stride_points', points.toString());
     localStorage.setItem('stride_steps', totalSteps.toString());
   }, [tracks, points, totalSteps]);
+
+  // Reset progress when track changes
+  useEffect(() => {
+    setCurrentTime(0);
+    setSongDuration(0);
+    setIsBuffering(false);
+  }, [currentTrackIndex]);
 
   // Handle music player events
   useEffect(() => {
@@ -253,7 +248,6 @@ export default function App() {
           if (lastCoords) {
             const dist = calculateDistance(lastCoords.lat, lastCoords.lng, latitude, longitude);
             if (dist > 1) {
-              // Assume 1 meter ≈ 1.3 steps for a run/fast walk
               setTotalSteps(prev => prev + Math.round(dist * 1.3));
             }
           }
@@ -346,7 +340,6 @@ export default function App() {
 
       {/* --- iPhone Device Frame --- */}
       <div className="relative w-[390px] h-[844px] shrink-0 bg-deep-space rounded-[3.5rem] border-[8px] border-[#1a1a1a] shadow-[0_0_0_2px_#333,0_50px_100px_-20px_rgba(0,0,0,0.8)] z-10 flex flex-col overflow-hidden">
-        
         {/* --- Dynamic Island --- */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full pt-4 flex justify-center z-[100] pointer-events-none">
           <motion.div 
@@ -417,7 +410,7 @@ export default function App() {
                   onClick={() => setActiveView('profile')}
                   className="w-10 h-10 rounded-2xl bg-white/5 border border-white/20 p-0.5 overflow-hidden active:scale-90 transition-transform"
                 >
-                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="avatar" className="w-full h-full object-cover" />
+                  <img src={profilePic} alt="avatar" className="w-full h-full object-cover" />
                 </button>
               </header>
 
@@ -679,24 +672,24 @@ export default function App() {
                <div className="flex flex-col items-center mb-10 text-center">
                   <div className="w-32 h-32 rounded-[2.5rem] bg-white/5 p-1 border border-white/10 mb-6 group relative">
                     <div className="w-full h-full rounded-[2rem] bg-gradient-to-br from-neon-green/10 to-blue-600/10 flex items-center justify-center overflow-hidden relative shadow-2xl">
-                       <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="avatar" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                       <img src={profilePic} alt="avatar" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     </div>
                     <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-neon-green rounded-2xl flex items-center justify-center shadow-lg border-4 border-deep-space">
                        <CheckCircle2 className="w-5 h-5 text-black" />
                     </div>
                   </div>
                   <h2 className="text-3xl font-heavy mb-1">Glazyl Alicaway</h2>
-                  <p className="text-neon-green font-bold tracking-widest uppercase text-[10px]">A-Tier Runner • Level 14</p>
+                  <p className="text-neon-green font-bold tracking-widest uppercase text-[10px]">Beginner Runner • Level 1</p>
                </div>
 
                <div className="grid grid-cols-2 gap-3 w-full mb-10">
                   <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
                      <p className="text-[9px] text-white/30 uppercase font-black mb-1">Total Steps</p>
-                     <p className="text-lg font-black leading-tight">124k</p>
+                     <p className="text-lg font-black leading-tight">{totalSteps.toLocaleString()}</p>
                   </div>
                   <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
                      <p className="text-[9px] text-white/30 uppercase font-black mb-1">Points</p>
-                     <p className="text-lg font-black text-neon-green leading-tight">{points + 42}</p>
+                     <p className="text-lg font-black text-neon-green leading-tight">{points}</p>
                   </div>
                   <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
                      <p className="text-[9px] text-white/30 uppercase font-black mb-1">Unlocks</p>
@@ -704,7 +697,7 @@ export default function App() {
                   </div>
                   <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
                      <p className="text-[9px] text-white/30 uppercase font-black mb-1">Streak</p>
-                     <p className="text-lg font-black leading-tight">4 Days</p>
+                     <p className="text-lg font-black leading-tight">0 Days</p>
                   </div>
                </div>
 
