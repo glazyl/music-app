@@ -119,6 +119,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
 export default function App() {
   const [activeView, setActiveView] = useState<'home' | 'search' | 'library' | 'run' | 'profile'>('home');
+  const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
   const [tracks, setTracks] = useState<Track[]>(() => {
@@ -684,17 +685,17 @@ export default function App() {
 
         {/* --- Floating Mini Player (iOS Style) --- */}
         <AnimatePresence>
-          {!isWatchingAd && (
+          {!isWatchingAd && !showFullPlayer && (
             <motion.div 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              className="absolute bottom-[90px] left-0 right-0 px-4 z-50 px-3"
+              className="absolute bottom-[90px] left-0 right-0 px-4 z-50 px-3 cursor-pointer"
+              onClick={() => setShowFullPlayer(true)}
             >
               <div className="h-16 bg-[#1a1a1a]/80 backdrop-blur-2xl rounded-2xl flex items-center justify-between px-3 border border-white/10 shadow-2xl">
                 <div 
-                  onClick={() => setActiveView('home')}
-                  className="flex items-center space-x-3 w-3/5 cursor-pointer"
+                  className="flex items-center space-x-3 w-3/5"
                 >
                   <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg">
                     <img src={currentTrack.cover} alt="" className={`w-full h-full object-cover ${isPlaying ? 'scale-110' : 'scale-100'} transition-transform duration-500`} />
@@ -704,7 +705,7 @@ export default function App() {
                     <p className="text-[9px] text-neon-green font-bold truncate opacity-80 uppercase tracking-tight">{currentTrack.artist}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                   <button 
                     onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)} 
                     className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform"
@@ -714,6 +715,83 @@ export default function App() {
                   <button onClick={handleNext} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform">
                     <SkipForward className="w-4 h-4 text-white" />
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* --- Full Screen Player Overlay --- */}
+        <AnimatePresence>
+          {showFullPlayer && (
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="absolute inset-0 bg-deep-space z-[80] flex flex-col p-8 pt-16"
+            >
+              <div className="atmosphere opacity-30 fixed inset-0" />
+              
+              <header className="flex justify-between items-center mb-10 z-10">
+                <button 
+                   onClick={() => setShowFullPlayer(false)}
+                   className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform"
+                >
+                  <SkipBack className="w-5 h-5 rotate-90" />
+                </button>
+                <div className="text-center">
+                   <p className="text-[10px] font-black uppercase text-white/30 tracking-widest">Now Playing</p>
+                   <p className="text-xs font-bold text-neon-green uppercase tracking-tighter">BPM: {currentTrack.bpm}</p>
+                </div>
+                <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center active:scale-90 transition-transform">
+                   <div className="flex flex-col gap-0.5">
+                      <div className="w-4 h-0.5 bg-white rounded-full"></div>
+                      <div className="w-4 h-0.5 bg-white rounded-full"></div>
+                   </div>
+                </button>
+              </header>
+
+              <div className="flex-1 flex flex-col items-center justify-center z-10 px-2 lg:px-6">
+                <motion.div 
+                   animate={{ scale: isPlaying ? 1 : 0.9, opacity: isPlaying ? 1 : 0.8 }}
+                   className="w-full aspect-square rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] relative group border border-white/5"
+                >
+                   <img src={currentTrack.cover} alt="" className="w-full h-full object-cover" />
+                </motion.div>
+
+                <div className="w-full mt-12 text-left">
+                  <h2 className="text-3xl font-heavy text-white mb-1">{currentTrack.title}</h2>
+                  <p className="text-xl text-neon-green font-bold opacity-80">{currentTrack.artist}</p>
+                </div>
+
+                <div className="w-full mt-10 space-y-2">
+                   <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden relative">
+                      <motion.div 
+                        animate={{ width: isPlaying ? '100%' : '30%' }}
+                        transition={{ duration: isPlaying ? 225 : 0.5, ease: "linear" }}
+                        className="h-full bg-neon-green shadow-[0_0_15px_#39FF14]"
+                      />
+                   </div>
+                   <div className="flex justify-between text-[10px] font-mono text-white/30">
+                      <span>0:00</span>
+                      <span>{currentTrack.duration}</span>
+                   </div>
+                </div>
+
+                <div className="w-full mt-10 flex items-center justify-between pb-10">
+                   <button className="text-white/40 hover:text-white transition-colors"><div className="w-6 h-6 border-2 border-current rounded-lg flex items-center justify-center text-[10px] font-black">HQ</div></button>
+                   <div className="flex items-center gap-10">
+                      <button onClick={handlePrev} className="text-white active:scale-90 transition-transform"><SkipBack className="w-8 h-8 fill-current" /></button>
+                      <button 
+                        onClick={() => !currentTrack.isLocked && setIsPlaying(!isPlaying)}
+                        className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-black active:scale-90 transition-transform shadow-2xl"
+                      >
+                         {isPlaying && !currentTrack.isLocked ? <Pause className="w-10 h-10 fill-current" /> : <Play className="w-10 h-10 fill-current pl-1" />}
+                      </button>
+                      <button onClick={handleNext} className="text-white active:scale-90 transition-transform"><SkipForward className="w-8 h-8 fill-current" /></button>
+                   </div>
+                   <button className="text-white/40 hover:text-white transition-colors"><Music className="w-6 h-6" /></button>
                 </div>
               </div>
             </motion.div>
