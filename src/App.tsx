@@ -171,6 +171,7 @@ export default function App() {
   const [isUnlockedMode, setIsUnlockedMode] = useState(false);
   const [lastCoords, setLastCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isTracking, setIsTracking] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
   
   // Ad state
   const [isWatchingAd, setIsWatchingAd] = useState(false);
@@ -268,19 +269,28 @@ export default function App() {
         return;
       }
       setIsTracking(true);
+      setGpsError(null);
       watcherRef.current = navigator.geolocation.watchPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
           if (lastCoords) {
             const dist = calculateDistance(lastCoords.lat, lastCoords.lng, latitude, longitude);
-            if (dist > 1) {
-              setTotalSteps(prev => prev + Math.round(dist * 1.3));
+            if (dist > 0.5) { // Lowered threshold slightly for better sensitivity
+              setTotalSteps(prev => prev + Math.max(1, Math.round(dist * 1.3)));
             }
           }
           setLastCoords({ lat: latitude, lng: longitude });
         },
-        (err) => console.error(err),
-        { enableHighAccuracy: true }
+        (err) => {
+          console.error(err);
+          setGpsError(err.message);
+          setIsTracking(false);
+        },
+        { 
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        }
       );
     }
   };
@@ -647,9 +657,17 @@ export default function App() {
 
           {activeView === 'run' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full items-center">
-               <div className="w-full text-left mb-10">
-                  <h2 className="text-3xl font-heavy">Current Run</h2>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Session Active • GPS Live</p>
+               <div className="w-full text-left mb-10 flex justify-between items-end">
+                  <div>
+                    <h2 className="text-3xl font-heavy">Current Run</h2>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Session Active • GPS Live</p>
+                  </div>
+                  <button 
+                    onClick={incrementMockSteps}
+                    className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[8px] font-black uppercase text-neon-green/60 tracking-widest active:scale-95 transition-transform"
+                  >
+                    Simulate +50 Steps
+                  </button>
                </div>
 
                <div className="relative mb-12 flex items-center justify-center">
@@ -698,6 +716,21 @@ export default function App() {
                >
                  {isTracking ? 'STOP RUN' : 'START RUN'}
                </button>
+
+               <AnimatePresence>
+                 {gpsError && (
+                   <motion.div 
+                     initial={{ opacity: 0, y: -10 }} 
+                     animate={{ opacity: 1, y: 0 }} 
+                     exit={{ opacity: 0, y: -10 }}
+                     className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl w-full"
+                   >
+                     <p className="text-red-500 text-[10px] font-black uppercase tracking-tighter text-center">
+                       GPS Error: {gpsError}
+                     </p>
+                   </motion.div>
+                 )}
+               </AnimatePresence>
 
                <div className="mt-8 w-full">
                   <div 
