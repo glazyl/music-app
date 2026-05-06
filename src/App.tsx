@@ -50,53 +50,71 @@ const SAMPLE_TRACKS: Track[] = [
     id: '1',
     title: 'Love Like U',
     artist: 'Ashtine Olviga',
-    duration: '1:57',
+    duration: '2:57',
     cover: 'https://images.genius.com/09f580e348cb09c3443582e525cca603.640x640x1.jpg',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    url: 'spotify:track:1JvG9p9pXjO2G5vjZ0HlZq',
     isLocked: false,
     bpm: 128
   },
   {
     id: '2',
-    title: 'Manchild',
+    title: 'Espresso',
     artist: 'Sabrina Carpenter',
-    duration: '3:33',
+    duration: '2:52',
     cover: 'https://images.genius.com/5b099a4fe7bc649900fd54fd4dd747f9.1000x1000x1.png',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    url: 'spotify:track:2qskSowvTzX77oYmItTLAi',
     isLocked: true,
-    bpm: 140
+    bpm: 104
   },
   {
     id: '3',
-    title: 'Stateside + Zara Larsson',
+    title: 'Nice to meet you',
     artist: 'PinkPantheress, Zara Larsson',
-    duration: '3:04',
+    duration: '2:42',
     cover: 'https://images.genius.com/f3eff0988933e71aba2424313b12fe59.1000x1000x1.png',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    url: 'spotify:track:6pSe7Ym0aXfI0vL0YnI3U7',
     isLocked: true,
     bpm: 165
   },
   {
     id: '4',
-    title: 'party 4 u',
+    title: '360',
     artist: 'Charli xcx',
-    duration: '4:56',
+    duration: '2:13',
     cover: 'https://images.genius.com/e618acfa672295153b4a390066c58576.1000x1000x1.png',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    url: 'spotify:track:499reP6S876YI66S6Xo29E',
     isLocked: true,
     bpm: 155
   },
   {
     id: '5',
-    title: 'Womanizer',
+    title: 'Toxic',
     artist: 'Britney Spears',
-    duration: '3:44',
+    duration: '3:18',
     cover: 'https://images.genius.com/e8ef9cf7f6ace6101517128b7eec657b.300x300x1.jpg',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
+    url: 'spotify:track:6I9VjXpZp39UvIAp7pS7qy',
     isLocked: true,
-    bpm: 172
+    bpm: 143
   }
 ];
+
+// --- Types ---
+interface SpotifyEmbedController {
+  loadUri: (uri: string) => void;
+  play: () => void;
+  pause: () => void;
+  togglePlay: () => void;
+  seek: (milliseconds: number) => void;
+  addListener: (event: string, callback: (eventData: any) => void) => void;
+  removeListener: (event: string, callback: (eventData: any) => void) => void;
+  destroy: () => void;
+}
+
+declare global {
+  interface Window {
+    onSpotifyIframeApiReady: (IFrameAPI: any) => void;
+  }
+}
 
 // --- Utilities ---
 
@@ -145,13 +163,67 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [songDuration, setSongDuration] = useState(0);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [spotifyController, setSpotifyController] = useState<SpotifyEmbedController | null>(null);
 
-  // Reset progress when track changes
+  // Load Spotify Iframe API
   useEffect(() => {
-    setCurrentTime(0);
-    setSongDuration(0);
-    setIsBuffering(false);
+    if (!window.document.getElementById('spotify-player-api')) {
+      const script = document.createElement('script');
+      script.id = 'spotify-player-api';
+      script.src = "https://open.spotify.com/embed-error/iframe-api/v1"; // The working endpoint for AI Studio
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
+    window.onSpotifyIframeApiReady = (IFrameAPI: any) => {
+      const element = document.getElementById('spotify-player');
+      const options = {
+        uri: tracks[currentTrackIndex].url,
+        width: '100%',
+        height: '80',
+      };
+      
+      IFrameAPI.createController(element, options, (EmbedController: SpotifyEmbedController) => {
+        setSpotifyController(EmbedController);
+        
+        EmbedController.addListener('playback_update', (e: any) => {
+          const { position, duration } = e.data;
+          setCurrentTime(position / 1000);
+          setSongDuration(duration / 1000);
+        });
+
+        EmbedController.addListener('ready', () => {
+          console.log('Spotify Embed is ready');
+        });
+      });
+    };
+
+    return () => {
+      if (spotifyController) {
+        spotifyController.destroy();
+      }
+    };
+  }, []);
+
+  // Update URI when track changes
+  useEffect(() => {
+    if (spotifyController) {
+      spotifyController.loadUri(currentTrack.url);
+      if (isPlaying) {
+        spotifyController.play();
+      }
+    }
   }, [currentTrackIndex]);
+
+  // Sync play/pause
+  useEffect(() => {
+    if (!spotifyController) return;
+    if (isPlaying) {
+      spotifyController.play();
+    } else {
+      spotifyController.pause();
+    }
+  }, [isPlaying, spotifyController]);
 
   const [totalSteps, setTotalSteps] = useState(() => {
     const saved = localStorage.getItem('stride_tracks_v2');
@@ -169,7 +241,6 @@ export default function App() {
   const [isWatchingAd, setIsWatchingAd] = useState(false);
   const [adTimer, setAdTimer] = useState(0);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const watcherRef = useRef<number | null>(null);
 
   const currentTrack = tracks[currentTrackIndex];
@@ -181,52 +252,10 @@ export default function App() {
     localStorage.setItem('stride_steps', totalSteps.toString());
   }, [tracks, points, totalSteps]);
 
-  // Handle music player events
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const handleLoadedMetadata = () => setSongDuration(audio.duration);
-    const handleWaiting = () => setIsBuffering(true);
-    const handlePlaying = () => setIsBuffering(false);
-    const handleCanPlay = () => setIsBuffering(false);
-    const handleEnded = () => {
-      setIsPlaying(false);
-      setCurrentTime(0);
-      handleNext();
-    };
-
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('waiting', handleWaiting);
-    audio.addEventListener('playing', handlePlaying);
-    audio.addEventListener('canplay', handleCanPlay);
-    audio.addEventListener('ended', handleEnded);
-
-    if (isPlaying && !currentTrack.isLocked) {
-      audio.play().catch(e => {
-        console.error("Playback failed", e);
-        setIsPlaying(false);
-      });
-    } else {
-      audio.pause();
-    }
-
-    return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('waiting', handleWaiting);
-      audio.removeEventListener('playing', handlePlaying);
-      audio.removeEventListener('canplay', handleCanPlay);
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, [isPlaying, currentTrackIndex]);
-
   // Handle music player seek
   const handleSeek = (time: number) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
+    if (spotifyController) {
+      spotifyController.seek(time * 1000);
     }
   };
 
@@ -985,10 +1014,10 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <audio 
-        ref={audioRef}
-        src={currentTrack.url}
-      />
+      {/* Spotify Embed Container - Kept small and visually consistent */}
+      <div className="fixed bottom-4 right-4 z-[50] opacity-0 hover:opacity-100 transition-opacity pointer-events-auto">
+        <div id="spotify-player" className="w-[300px] rounded-xl overflow-hidden shadow-2xl border border-white/10" />
+      </div>
     </div>
   );
 }
