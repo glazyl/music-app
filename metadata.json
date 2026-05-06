@@ -1,0 +1,11 @@
+{
+  "name": "TempoRun",
+  "description": "Unlock your rhythm. Run 1km to earn a free song and build your ultimate workout playlist.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "Location Tracking",
+    "Audio Streaming"
+  ]
+}
