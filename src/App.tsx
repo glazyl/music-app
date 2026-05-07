@@ -96,7 +96,7 @@ const POINTS_PER_SONG = 5;
 const AD_REWARD_POINTS = 3;
 const AD_DURATION_SEC = 30;
 
-const DEFAULT_POINTS = 5;
+const DEFAULT_POINTS = 0;
 const DEFAULT_STEPS = 0;
 const DEFAULT_NAME = 'Stride Walker';
 const DEFAULT_AVATAR = 'Stride';
@@ -221,6 +221,8 @@ export default function App() {
   const watcherRef = useRef<number | null>(null);
   const lastUidRef = useRef<string | null>(null);
 
+  const currentTrack = tracks[currentTrackIndex] || SAMPLE_TRACKS[0];
+
   const resetUserState = () => {
     setPoints(DEFAULT_POINTS);
     setTotalSteps(DEFAULT_STEPS);
@@ -279,7 +281,7 @@ export default function App() {
         setPoints(data.points || 0);
         setTotalSteps(data.totalSteps || 0);
         setHourlySteps(data.hourlySteps || new Array(24).fill(0));
-        setProfileName(data.name || user.displayName || 'Stride Walker');
+        setProfileName(data.name || user.displayName || DEFAULT_NAME);
         setProfileAvatarSeed(data.avatarSeed || user.uid);
         setProfilePhoto(data.photoURL || null);
         
@@ -296,7 +298,7 @@ export default function App() {
           name: user.displayName || 'New Runner',
           avatarSeed: user.uid,
           photoURL: user.photoURL,
-          points: 5,
+          points: 0,
           totalSteps: 0,
           hourlySteps: new Array(24).fill(0),
           unlockedTrackIds: ['1'],
