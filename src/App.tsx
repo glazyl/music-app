@@ -244,16 +244,20 @@ export default function App() {
 
   // Auth observer
   useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setIsAuthLoading(false);
+      
       if (u) {
-        if (activeView === 'welcome') setActiveView('home');
+        setActiveView(prev => prev === 'welcome' ? 'home' : prev);
       } else {
-        setActiveView('welcome');
+        // If no user, we stay on welcome (initial state) or if they explicitly sign out
+        // We don't force 'welcome' here every time activeView changes anymore
       }
     });
-  }, [activeView]);
+
+    return () => unsubscribe();
+  }, []); // Removed activeView dependency to stop reset loops
 
   // Firestore Sync
   useEffect(() => {
@@ -660,16 +664,20 @@ export default function App() {
         <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/20 rounded-full z-[100]" />
 
         {/* --- Main Content Area --- */}
-        <main className="flex-1 flex flex-col p-6 pt-16 relative z-0 overflow-y-auto hidden-scrollbar pb-56">
+        <main className={`flex-1 flex flex-col p-6 pt-16 relative z-0 overflow-y-auto hidden-scrollbar ${activeView === 'welcome' ? 'pb-10' : 'pb-56'}`}>
           
-          {isAuthLoading && (
+          {isAuthLoading && activeView !== 'welcome' && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
               <RefreshCw className="w-8 h-8 text-neon-green animate-spin" />
             </div>
           )}
 
           {activeView === 'welcome' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col h-full items-center justify-center text-center">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="flex flex-col min-h-full items-center justify-center text-center relative z-10"
+            >
               <div className="w-20 h-20 bg-neon-green rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(57,255,20,0.4)] mb-10">
                 <Activity className="w-12 h-12 text-black" />
               </div>
