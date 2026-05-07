@@ -196,6 +196,7 @@ export default function App() {
   const [totalSteps, setTotalSteps] = useState(DEFAULT_STEPS);
   const [hourlySteps, setHourlySteps] = useState<number[]>(new Array(24).fill(0));
   const [points, setPoints] = useState(DEFAULT_POINTS);
+  const [streak, setStreak] = useState(0);
   
   // Profile state
   const [profileName, setProfileName] = useState(DEFAULT_NAME);
@@ -231,6 +232,7 @@ export default function App() {
     setProfileAvatarSeed(DEFAULT_AVATAR);
     setProfilePhoto(null);
     setTracks(SAMPLE_TRACKS);
+    setStreak(0);
     setEditName(DEFAULT_NAME);
     setEditAvatarSeed(DEFAULT_AVATAR);
     setEditPhoto(null);
@@ -280,6 +282,7 @@ export default function App() {
         const data = docSnap.data();
         setPoints(data.points || 0);
         setTotalSteps(data.totalSteps || 0);
+        setStreak(data.streak || 0);
         setHourlySteps(data.hourlySteps || new Array(24).fill(0));
         setProfileName(data.name || user.displayName || DEFAULT_NAME);
         setProfileAvatarSeed(data.avatarSeed || user.uid);
@@ -300,6 +303,7 @@ export default function App() {
           photoURL: user.photoURL,
           points: 0,
           totalSteps: 0,
+          streak: 0,
           hourlySteps: new Array(24).fill(0),
           unlockedTrackIds: ['1'],
           createdAt: serverTimestamp(),
@@ -327,15 +331,15 @@ export default function App() {
     }
   };
 
-  // Sync Total Steps and History to Firestore (Debounced)
+  // Sync Stats to Firestore (Debounced)
   useEffect(() => {
     if (!user) return;
     const timer = setTimeout(() => {
-      syncToFirestore({ totalSteps, hourlySteps });
+      syncToFirestore({ totalSteps, hourlySteps, streak, points });
       localStorage.setItem('stride_hourly_steps', JSON.stringify(hourlySteps));
-    }, 2000); // Sync after 2s of no changes
+    }, 2000); 
     return () => clearTimeout(timer);
-  }, [totalSteps, hourlySteps, user]);
+  }, [totalSteps, hourlySteps, streak, points, user]);
 
   const handleSignIn = async () => {
     setIsAuthProcessing(true);
@@ -354,6 +358,8 @@ export default function App() {
         setAuthError("Unauthorized domain. Please add this domain to authorized domains in Firebase Console.");
       } else if (error.code === 'auth/popup-closed-by-user') {
         setAuthError("Sign-in window closed before completion.");
+      } else if (error.message.includes('disallowed_useragent')) {
+        setAuthError("Google security policy: Please open this app in a new browser tab to sign in.");
       } else {
         setAuthError(error.message);
       }
@@ -1371,7 +1377,7 @@ export default function App() {
                           </div>
                           <div className="bg-[#111] p-5 rounded-2xl border border-white/5 text-center">
                             <p className="text-[9px] text-white/30 uppercase font-black mb-1">Streak</p>
-                            <p className="text-lg font-black leading-tight">0 Days</p>
+                            <p className="text-lg font-black leading-tight">{streak} Days</p>
                           </div>
                       </div>
 
