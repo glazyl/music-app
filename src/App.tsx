@@ -96,6 +96,11 @@ const POINTS_PER_SONG = 5;
 const AD_REWARD_POINTS = 3;
 const AD_DURATION_SEC = 30;
 
+const DEFAULT_POINTS = 5;
+const DEFAULT_STEPS = 0;
+const DEFAULT_NAME = 'Stride Walker';
+const DEFAULT_AVATAR = 'Stride';
+
 const SAMPLE_TRACKS: Track[] = [
   {
     id: '1',
@@ -180,19 +185,7 @@ export default function App() {
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [tracks, setTracks] = useState<Track[]>(() => {
-    const saved = localStorage.getItem('stride_tracks_v2');
-    if (!saved) return SAMPLE_TRACKS;
-    try {
-      const parsed = JSON.parse(saved) as Track[];
-      return SAMPLE_TRACKS.map(sample => {
-        const savedTrack = parsed.find(t => t.id === sample.id);
-        return savedTrack ? { ...sample, isLocked: savedTrack.isLocked } : sample;
-      });
-    } catch (e) {
-      return SAMPLE_TRACKS;
-    }
-  });
+  const [tracks, setTracks] = useState<Track[]>(SAMPLE_TRACKS);
 
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -200,31 +193,18 @@ export default function App() {
   const [songDuration, setSongDuration] = useState(0);
   const [isBuffering, setIsBuffering] = useState(false);
 
-  const [totalSteps, setTotalSteps] = useState(() => {
-    return Number(localStorage.getItem('stride_steps') || 523);
-  });
-  const [hourlySteps, setHourlySteps] = useState<number[]>(() => {
-    const saved = localStorage.getItem('stride_hourly_steps');
-    return saved ? JSON.parse(saved) : new Array(24).fill(0);
-  });
-  const [points, setPoints] = useState(() => {
-    return Number(localStorage.getItem('stride_points') || 5);
-  });
+  const [totalSteps, setTotalSteps] = useState(DEFAULT_STEPS);
+  const [hourlySteps, setHourlySteps] = useState<number[]>(new Array(24).fill(0));
+  const [points, setPoints] = useState(DEFAULT_POINTS);
   
   // Profile state
-  const [profileName, setProfileName] = useState(() => {
-    return localStorage.getItem('stride_profile_name') || 'Glazyl Alicaway';
-  });
-  const [profileAvatarSeed, setProfileAvatarSeed] = useState(() => {
-    return localStorage.getItem('stride_profile_avatar_seed') || 'Glazyl';
-  });
-  const [profilePhoto, setProfilePhoto] = useState(() => {
-    return localStorage.getItem('stride_profile_photo') || null;
-  });
+  const [profileName, setProfileName] = useState(DEFAULT_NAME);
+  const [profileAvatarSeed, setProfileAvatarSeed] = useState(DEFAULT_AVATAR);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [editName, setEditName] = useState(profileName);
-  const [editAvatarSeed, setEditAvatarSeed] = useState(profileAvatarSeed);
-  const [editPhoto, setEditPhoto] = useState(profilePhoto);
+  const [editName, setEditName] = useState(DEFAULT_NAME);
+  const [editAvatarSeed, setEditAvatarSeed] = useState(DEFAULT_AVATAR);
+  const [editPhoto, setEditPhoto] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -239,26 +219,54 @@ export default function App() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const watcherRef = useRef<number | null>(null);
+  const lastUidRef = useRef<string | null>(null);
 
-  const currentTrack = tracks[currentTrackIndex];
+  const resetUserState = () => {
+    setPoints(DEFAULT_POINTS);
+    setTotalSteps(DEFAULT_STEPS);
+    setHourlySteps(new Array(24).fill(0));
+    setProfileName(DEFAULT_NAME);
+    setProfileAvatarSeed(DEFAULT_AVATAR);
+    setProfilePhoto(null);
+    setTracks(SAMPLE_TRACKS);
+    setEditName(DEFAULT_NAME);
+    setEditAvatarSeed(DEFAULT_AVATAR);
+    setEditPhoto(null);
+    
+    // Clear localStorage
+    localStorage.removeItem('stride_steps');
+    localStorage.removeItem('stride_hourly_steps');
+    localStorage.removeItem('stride_points');
+    localStorage.removeItem('stride_profile_name');
+    localStorage.removeItem('stride_profile_avatar_seed');
+    localStorage.removeItem('stride_profile_photo');
+    localStorage.removeItem('stride_tracks_v2');
+  };
 
   // Auth observer
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setIsAuthLoading(false);
-      setIsAuthProcessing(false);
+      const currentUid = u ? u.uid : null;
       
+      // If the user has changed (A -> B, A -> null, or null -> A)
+      // Reset state to prevent session bleeding
+      if (currentUid !== lastUidRef.current) {
+        resetUserState();
+        lastUidRef.current = currentUid;
+      }
+
       if (u) {
+        setUser(u);
         setActiveView(prev => prev === 'welcome' ? 'home' : prev);
       } else {
-        // If no user, we stay on welcome (initial state) or if they explicitly sign out
-        // We don't force 'welcome' here every time activeView changes anymore
+        setUser(null);
       }
+      setIsAuthLoading(false);
+      setIsAuthProcessing(false);
     });
 
     return () => unsubscribe();
-  }, []); // Removed activeView dependency to stop reset loops
+  }, []); // Empty deps is correct here as we use refs for tracking UID changes
 
   // Firestore Sync
   useEffect(() => {
@@ -354,7 +362,7 @@ export default function App() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      setUser(null); // Explicitly clear user
+      resetUserState(); 
       setActiveView('welcome');
       setWelcomeAuthMode('options');
       setEmail('');
@@ -1049,7 +1057,13 @@ export default function App() {
                     <div className="bg-[#111111] p-5 rounded-[2rem] border border-white/5 relative overflow-hidden active:scale-[0.98] transition-transform cursor-pointer">
                       <div className="flex items-center space-x-4">
                         <div className="w-20 h-20 bg-white/5 rounded-2xl overflow-hidden shadow-2xl relative flex-shrink-0">
-                          <img src={tracks.find(t => t.isLocked)?.cover} alt="" className="w-full h-full object-cover grayscale opacity-[0.25]" />
+                          {tracks.find(t => t.isLocked) ? (
+                            <img src={tracks.find(t => t.isLocked)?.cover} alt="" className="w-full h-full object-cover grayscale opacity-[0.25]" />
+                          ) : (
+                            <div className="w-full h-full bg-neon-green/20 flex items-center justify-center">
+                              <Unlock className="w-8 h-8 text-neon-green" />
+                            </div>
+                          )}
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
                             <Lock className="w-6 h-6 text-white/20" />
                             <p className="text-[7px] font-black uppercase text-white/40 tracking-widest">Run to unlock</p>
@@ -1614,8 +1628,9 @@ export default function App() {
       </AnimatePresence>
 
       <audio 
+        key={currentTrack.id}
         ref={audioRef}
-        src={currentTrack.url || null}
+        src={currentTrack.url || undefined}
       />
     </div>
   );
