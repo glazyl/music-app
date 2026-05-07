@@ -1,9 +1,9 @@
-const firebaseConfig = {
-  apiKey: "AIzaSyD8Apn_H6wIMZN5A5A69QdcWSbneA4NRNI",
-  authDomain: "stride-2f3dc.firebaseapp.com",
-  projectId: "stride-2f3dc",
-  storageBucket: "stride-2f3dc.firebasestorage.app",
-  messagingSenderId: "176591802993",
-  appId: "1:176591802993:web:0cb911c19fe31d7e7401d0",
-  measurementId: "G-QL56T8GGPN"
-};
+{
+  "apiKey": "AIzaSyD8Apn_H6wIMZN5A5A69QdcWSbneA4NRNI",
+  "authDomain": "stride-2f3dc.firebaseapp.com",
+  "projectId": "stride-2f3dc",
+  "storageBucket": "stride-2f3dc.firebasestorage.app",
+  "messagingSenderId": "176591802993",
+  "appId": "1:176591802993:web:0cb911c19fe31d7e7401d0",
+  "measurementId": "G-QL56T8GGPN"
+}

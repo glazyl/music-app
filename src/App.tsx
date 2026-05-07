@@ -35,7 +35,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // --- Firebase Initialization ---
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const db = getFirestore(app);
 const auth = getAuth(app);
 
 // --- Error Handling ---
@@ -337,11 +337,13 @@ export default function App() {
     } catch (error: any) {
       console.error("Sign in failed", error);
       if (error.code === 'auth/popup-blocked') {
-        setAuthError("Sign-in popup was blocked by your browser. Please allow popups for this site.");
+        setAuthError("Sign-in popup was blocked. Please allow popups for this site.");
       } else if (error.code === 'auth/cancelled-popup-request') {
         setAuthError("Sign-in was cancelled.");
       } else if (error.code === 'auth/unauthorized-domain') {
         setAuthError("Unauthorized domain. Please add this domain to authorized domains in Firebase Console.");
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        setAuthError("Sign-in window closed before completion.");
       } else {
         setAuthError(error.message);
       }
@@ -352,6 +354,7 @@ export default function App() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      setUser(null); // Explicitly clear user
       setActiveView('welcome');
       setWelcomeAuthMode('options');
       setEmail('');
@@ -374,7 +377,19 @@ export default function App() {
       }
     } catch (error: any) {
       console.error("Auth failed", error);
-      setAuthError(error.message);
+      if (error.code === 'auth/unauthorized-domain') {
+        setAuthError("Unauthorized domain. Please add this domain to authorized domains in Firebase Console.");
+      } else if (error.code === 'auth/weak-password') {
+        setAuthError("Password should be at least 6 characters.");
+      } else if (error.code === 'auth/email-already-in-use') {
+        setAuthError("This email is already registered.");
+      } else if (error.code === 'auth/invalid-email') {
+        setAuthError("Please enter a valid email address.");
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setAuthError("Invalid email or password.");
+      } else {
+        setAuthError(error.message);
+      }
       setIsAuthProcessing(false);
     }
   };
@@ -1600,7 +1615,7 @@ export default function App() {
 
       <audio 
         ref={audioRef}
-        src={currentTrack.url}
+        src={currentTrack.url || null}
       />
     </div>
   );
