@@ -620,7 +620,7 @@ export default function App() {
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden text-white font-sans bg-[#020202] py-8 selection:bg-neon-green selection:text-black">
       {/* --- Ambient Background --- */}
-      <div className="atmosphere fixed inset-0 z-0 opacity-40" />
+      <div className="atmosphere fixed inset-0 z-0 opacity-40 pointer-events-none" />
 
       {/* --- iPhone Device Frame --- */}
       <div className="relative w-[390px] h-[844px] shrink-0 bg-deep-space rounded-[3.5rem] border-[8px] border-[#1a1a1a] shadow-[0_0_0_2px_#333,0_50px_100px_-20px_rgba(0,0,0,0.8)] z-10 flex flex-col overflow-hidden">
@@ -709,6 +709,16 @@ export default function App() {
                     exit={{ opacity: 0, x: 20 }}
                     className="w-full flex flex-col gap-4"
                   >
+                    {authError && (
+                      <motion.p 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="text-[10px] text-red-500 font-bold uppercase tracking-wider mb-2 text-center"
+                      >
+                        {authError}
+                      </motion.p>
+                    )}
+
                     <button 
                       onClick={handleSignIn}
                       disabled={isAuthProcessing}
@@ -806,8 +816,11 @@ export default function App() {
               </AnimatePresence>
 
               <button 
-                onClick={() => setActiveView('home')}
-                className="text-xs font-black uppercase text-white/20 tracking-widest py-4 mt-4"
+                onClick={() => {
+                  setAuthError(null);
+                  setActiveView('home');
+                }}
+                className="text-xs font-black uppercase text-white/40 hover:text-white/70 active:scale-95 tracking-widest py-4 mt-6 transition-all cursor-pointer"
               >
                 Continue as Guest
               </button>
