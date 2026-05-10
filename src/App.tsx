@@ -224,27 +224,29 @@ export default function App() {
 
   const currentTrack = tracks[currentTrackIndex] || SAMPLE_TRACKS[0];
 
-  const resetUserState = () => {
-    setPoints(DEFAULT_POINTS);
-    setTotalSteps(DEFAULT_STEPS);
+  const resetUserState = (u: FirebaseUser | null = null) => {
+    setPoints(0);
+    setTotalSteps(0);
     setHourlySteps(new Array(24).fill(0));
-    setProfileName(DEFAULT_NAME);
-    setProfileAvatarSeed(DEFAULT_AVATAR);
-    setProfilePhoto(null);
+    setProfileName(u?.displayName || DEFAULT_NAME);
+    setProfileAvatarSeed(u?.uid || DEFAULT_AVATAR);
+    setProfilePhoto(u?.photoURL || null);
     setTracks(SAMPLE_TRACKS);
     setStreak(0);
-    setEditName(DEFAULT_NAME);
-    setEditAvatarSeed(DEFAULT_AVATAR);
-    setEditPhoto(null);
+    setEditName(u?.displayName || DEFAULT_NAME);
+    setEditAvatarSeed(u?.uid || DEFAULT_AVATAR);
+    setEditPhoto(u?.photoURL || null);
     
-    // Clear localStorage
-    localStorage.removeItem('stride_steps');
-    localStorage.removeItem('stride_hourly_steps');
-    localStorage.removeItem('stride_points');
-    localStorage.removeItem('stride_profile_name');
-    localStorage.removeItem('stride_profile_avatar_seed');
-    localStorage.removeItem('stride_profile_photo');
-    localStorage.removeItem('stride_tracks_v2');
+    // Only clear storage if logging out (no user provided)
+    if (!u) {
+      localStorage.removeItem('stride_steps');
+      localStorage.removeItem('stride_hourly_steps');
+      localStorage.removeItem('stride_points');
+      localStorage.removeItem('stride_profile_name');
+      localStorage.removeItem('stride_profile_avatar_seed');
+      localStorage.removeItem('stride_profile_photo');
+      localStorage.removeItem('stride_tracks_v2');
+    }
   };
 
   // Auth observer
@@ -253,9 +255,9 @@ export default function App() {
       const currentUid = u ? u.uid : null;
       
       // If the user has changed (A -> B, A -> null, or null -> A)
-      // Reset state to prevent session bleeding
+      // Reset state to prevent session bleeding, but pre-fill with new user's basic info
       if (currentUid !== lastUidRef.current) {
-        resetUserState();
+        resetUserState(u);
         lastUidRef.current = currentUid;
       }
 
