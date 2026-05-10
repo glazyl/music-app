@@ -98,6 +98,7 @@ const AD_DURATION_SEC = 30;
 
 const DEFAULT_POINTS = 0;
 const DEFAULT_STEPS = 0;
+const DEFAULT_LIFETIME_STEPS = 0;
 const DEFAULT_NAME = 'Stride Walker';
 const DEFAULT_AVATAR = 'Stride';
 
@@ -194,6 +195,7 @@ export default function App() {
   const [isBuffering, setIsBuffering] = useState(false);
 
   const [totalSteps, setTotalSteps] = useState(DEFAULT_STEPS);
+  const [lifetimeSteps, setLifetimeSteps] = useState(DEFAULT_LIFETIME_STEPS);
   const [hourlySteps, setHourlySteps] = useState<number[]>(new Array(24).fill(0));
   const [points, setPoints] = useState(DEFAULT_POINTS);
   const [streak, setStreak] = useState(0);
@@ -227,6 +229,7 @@ export default function App() {
   const resetUserState = (u: FirebaseUser | null = null) => {
     setPoints(0);
     setTotalSteps(0);
+    setLifetimeSteps(0);
     setHourlySteps(new Array(24).fill(0));
     setProfileName(u?.displayName || DEFAULT_NAME);
     setProfileAvatarSeed(u?.uid || DEFAULT_AVATAR);
@@ -284,6 +287,8 @@ export default function App() {
         const data = docSnap.data();
         setPoints(data.points || 0);
         setTotalSteps(data.totalSteps || 0);
+        // Initialize lifetimeSteps from data, or fallback to derived total if migrating
+        setLifetimeSteps(data.lifetimeSteps !== undefined ? data.lifetimeSteps : (data.totalSteps || 0) + ((data.points || 0) * STEPS_PER_POINT));
         setStreak(data.streak || 0);
         setHourlySteps(data.hourlySteps || new Array(24).fill(0));
         setProfileName(data.name || user.displayName || DEFAULT_NAME);
@@ -305,6 +310,7 @@ export default function App() {
           photoURL: user.photoURL,
           points: 0,
           totalSteps: 0,
+          lifetimeSteps: 0,
           streak: 0,
           hourlySteps: new Array(24).fill(0),
           unlockedTrackIds: ['1'],
@@ -337,11 +343,11 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     const timer = setTimeout(() => {
-      syncToFirestore({ totalSteps, hourlySteps, streak, points });
+      syncToFirestore({ totalSteps, lifetimeSteps, hourlySteps, streak, points });
       localStorage.setItem('stride_hourly_steps', JSON.stringify(hourlySteps));
     }, 2000); 
     return () => clearTimeout(timer);
-  }, [totalSteps, hourlySteps, streak, points, user]);
+  }, [totalSteps, lifetimeSteps, hourlySteps, streak, points, user]);
 
   const handleSignIn = async () => {
     setIsAuthProcessing(true);
@@ -498,6 +504,7 @@ export default function App() {
               if (dist > 0.5) { 
                 const newSteps = Math.max(1, Math.round(dist * 1.3));
                 setTotalSteps(s => s + newSteps);
+                setLifetimeSteps(s => s + newSteps);
                 
                 // Track hourly history
                 const currentHour = new Date().getHours();
@@ -634,7 +641,7 @@ export default function App() {
   const stepProgressPercent = Math.min(totalSteps / STEPS_PER_POINT, 1);
   const stepDashOffset = 282.7 * (1 - stepProgressPercent);
 
-  const totalStepsOverall = totalSteps + (points * STEPS_PER_POINT);
+  const totalStepsOverall = lifetimeSteps;
   const calories = totalStepsOverall * 0.04;
   const calGoal = 500;
   const calProgressPercent = Math.min(calories / calGoal, 1);
@@ -674,7 +681,7 @@ export default function App() {
               {isTracking ? (
                 <motion.div key="tracking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
                   <Activity className="w-3 h-3 text-neon-green" />
-                  <span className="text-[10px] font-black text-neon-green">{totalSteps + (points * STEPS_PER_POINT)}</span>
+                  <span className="text-[10px] font-black text-neon-green">{lifetimeSteps}</span>
                 </motion.div>
               ) : (
                 <motion.div key="idle-l" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-4" />
