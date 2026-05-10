@@ -98,7 +98,6 @@ const AD_DURATION_SEC = 30;
 
 const DEFAULT_POINTS = 0;
 const DEFAULT_STEPS = 0;
-const DEFAULT_LIFETIME_STEPS = 0;
 const DEFAULT_NAME = 'Stride Walker';
 const DEFAULT_AVATAR = 'Stride';
 
@@ -195,10 +194,10 @@ export default function App() {
   const [isBuffering, setIsBuffering] = useState(false);
 
   const [totalSteps, setTotalSteps] = useState(DEFAULT_STEPS);
-  const [lifetimeSteps, setLifetimeSteps] = useState(DEFAULT_LIFETIME_STEPS);
   const [hourlySteps, setHourlySteps] = useState<number[]>(new Array(24).fill(0));
   const [points, setPoints] = useState(DEFAULT_POINTS);
   const [streak, setStreak] = useState(0);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   
   // Profile state
   const [profileName, setProfileName] = useState(DEFAULT_NAME);
@@ -227,15 +226,23 @@ export default function App() {
   const currentTrack = tracks[currentTrackIndex] || SAMPLE_TRACKS[0];
 
   const resetUserState = (u: FirebaseUser | null = null) => {
-    setPoints(0);
-    setTotalSteps(0);
-    setLifetimeSteps(0);
-    setHourlySteps(new Array(24).fill(0));
+    // Only reset progress stats if we are LOGGING OUT or changing to a DIFFERENT USER
+    // If u is present, we check if it's different from the lastUidRef.current
+    const isLoggingOut = !u;
+    const isUserSwitch = u && lastUidRef.current && u.uid !== lastUidRef.current;
+    
+    if (isLoggingOut || isUserSwitch) {
+      setPoints(0);
+      setTotalSteps(0);
+      setHourlySteps(new Array(24).fill(0));
+      setStreak(0);
+      setTracks(SAMPLE_TRACKS);
+      setIsDataLoaded(false);
+    }
+
     setProfileName(u?.displayName || DEFAULT_NAME);
     setProfileAvatarSeed(u?.uid || DEFAULT_AVATAR);
     setProfilePhoto(u?.photoURL || null);
-    setTracks(SAMPLE_TRACKS);
-    setStreak(0);
     setEditName(u?.displayName || DEFAULT_NAME);
     setEditAvatarSeed(u?.uid || DEFAULT_AVATAR);
     setEditPhoto(u?.photoURL || null);
@@ -287,8 +294,6 @@ export default function App() {
         const data = docSnap.data();
         setPoints(data.points || 0);
         setTotalSteps(data.totalSteps || 0);
-        // Initialize lifetimeSteps from data, or fallback to derived total if migrating
-        setLifetimeSteps(data.lifetimeSteps !== undefined ? data.lifetimeSteps : (data.totalSteps || 0) + ((data.points || 0) * STEPS_PER_POINT));
         setStreak(data.streak || 0);
         setHourlySteps(data.hourlySteps || new Array(24).fill(0));
         setProfileName(data.name || user.displayName || DEFAULT_NAME);
@@ -301,23 +306,25 @@ export default function App() {
             isLocked: !data.unlockedTrackIds.includes(t.id) && t.id !== '1'
           })));
         }
+        setIsDataLoaded(true);
       } else {
-        // Initialize new user
+        // Initialize new user with CURRENT local state (Promote guest progress)
         const initialData = {
           uid: user.uid,
           name: user.displayName || 'New Runner',
           avatarSeed: user.uid,
           photoURL: user.photoURL,
-          points: 0,
-          totalSteps: 0,
-          lifetimeSteps: 0,
-          streak: 0,
-          hourlySteps: new Array(24).fill(0),
-          unlockedTrackIds: ['1'],
+          points: points,
+          totalSteps: totalSteps,
+          streak: streak,
+          hourlySteps: hourlySteps,
+          unlockedTrackIds: tracks.filter(t => !t.isLocked).map(t => t.id),
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         };
-        setDoc(userDocRef, initialData).catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}`));
+        setDoc(userDocRef, initialData)
+          .then(() => setIsDataLoaded(true))
+          .catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}`));
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
@@ -341,13 +348,16 @@ export default function App() {
 
   // Sync Stats to Firestore (Debounced)
   useEffect(() => {
-    if (!user) return;
+    // CRITICAL: Only sync IF we have a user AND the initial data has been loaded from cloud
+    // This prevents zeroing out cloud data with default state during initial login race conditions
+    if (!user || !isDataLoaded) return;
+
     const timer = setTimeout(() => {
-      syncToFirestore({ totalSteps, lifetimeSteps, hourlySteps, streak, points });
+      syncToFirestore({ totalSteps, hourlySteps, streak, points });
       localStorage.setItem('stride_hourly_steps', JSON.stringify(hourlySteps));
     }, 2000); 
     return () => clearTimeout(timer);
-  }, [totalSteps, lifetimeSteps, hourlySteps, streak, points, user]);
+  }, [totalSteps, hourlySteps, streak, points, user, isDataLoaded]);
 
   const handleSignIn = async () => {
     setIsAuthProcessing(true);
@@ -504,7 +514,6 @@ export default function App() {
               if (dist > 0.5) { 
                 const newSteps = Math.max(1, Math.round(dist * 1.3));
                 setTotalSteps(s => s + newSteps);
-                setLifetimeSteps(s => s + newSteps);
                 
                 // Track hourly history
                 const currentHour = new Date().getHours();
@@ -641,7 +650,7 @@ export default function App() {
   const stepProgressPercent = Math.min(totalSteps / STEPS_PER_POINT, 1);
   const stepDashOffset = 282.7 * (1 - stepProgressPercent);
 
-  const totalStepsOverall = lifetimeSteps;
+  const totalStepsOverall = totalSteps + (points * STEPS_PER_POINT);
   const calories = totalStepsOverall * 0.04;
   const calGoal = 500;
   const calProgressPercent = Math.min(calories / calGoal, 1);
@@ -681,7 +690,7 @@ export default function App() {
               {isTracking ? (
                 <motion.div key="tracking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
                   <Activity className="w-3 h-3 text-neon-green" />
-                  <span className="text-[10px] font-black text-neon-green">{lifetimeSteps}</span>
+                  <span className="text-[10px] font-black text-neon-green">{totalSteps + (points * STEPS_PER_POINT)}</span>
                 </motion.div>
               ) : (
                 <motion.div key="idle-l" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-4" />
@@ -1390,7 +1399,7 @@ export default function App() {
                           </div>
                       </div>
 
-                      <div className="w-full space-y-6 pb-44">
+                      <div className="w-full space-y-6 pb-20">
                           <div className="flex justify-between items-center px-2">
                              <h3 className="text-xs font-black uppercase tracking-widest text-white/20">Account</h3>
                              <button 
@@ -1408,7 +1417,7 @@ export default function App() {
                           
                           <button 
                             onClick={handleSignOut}
-                            className="w-full py-5 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 relative z-50 cursor-pointer mb-10"
+                            className="w-full py-5 text-red-500/60 font-black text-xs uppercase tracking-[0.2em] hover:text-red-500 transition-colors flex items-center justify-center gap-2"
                           >
                             <LogOut className="w-4 h-4" />
                             Sign Out
