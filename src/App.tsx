@@ -1390,7 +1390,7 @@ export default function App() {
                           </div>
                       </div>
 
-                      <div className="w-full space-y-6 pb-20">
+                      <div className="w-full space-y-6 pb-44">
                           <div className="flex justify-between items-center px-2">
                              <h3 className="text-xs font-black uppercase tracking-widest text-white/20">Account</h3>
                              <button 
@@ -1408,7 +1408,7 @@ export default function App() {
                           
                           <button 
                             onClick={handleSignOut}
-                            className="w-full py-5 text-red-500/60 font-black text-xs uppercase tracking-[0.2em] hover:text-red-500 transition-colors flex items-center justify-center gap-2"
+                            className="w-full py-5 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 relative z-50 cursor-pointer mb-10"
                           >
                             <LogOut className="w-4 h-4" />
                             Sign Out
