@@ -387,9 +387,9 @@ export default function App() {
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
-      resetUserState(); 
       setActiveView('welcome');
+      resetUserState();
+      await signOut(auth);
       setWelcomeAuthMode('options');
       setEmail('');
       setPassword('');
@@ -1417,7 +1417,7 @@ export default function App() {
                           
                           <button 
                             onClick={handleSignOut}
-                            className="w-full py-5 text-red-500/60 font-black text-xs uppercase tracking-[0.2em] hover:text-red-500 transition-colors flex items-center justify-center gap-2"
+                            className="w-full py-5 mt-4 bg-white/5 hover:bg-white/10 text-red-500 font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 rounded-2xl active:scale-[0.98] relative z-50 cursor-pointer"
                           >
                             <LogOut className="w-4 h-4" />
                             Sign Out
